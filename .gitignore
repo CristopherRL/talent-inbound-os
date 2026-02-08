@@ -1,0 +1,39 @@
+﻿#Project specific
+.claude
+.context
+.specify
+
+
+# General
+.DS_Store
+*.log
+.env
+.venv/
+env/
+pycache/
+
+# IDE
+.vscode/
+.idea/
+
+#Python
+*.pyc
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.coverage
+Node / Frontend
+node_modules/
+.next/
+out/
+coverage/
+
+#Database
+*.sqlite3
+*.db
+postgres_data/
+OS specific
+.AppleDouble
+.LSOverride
+Thumbs.db
