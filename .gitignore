@@ -2,7 +2,8 @@
 .claude
 .context
 .specify
-
+specs
+CLAUDE.md
 
 # General
 .DS_Store
@@ -16,24 +17,34 @@ pycache/
 .vscode/
 .idea/
 
-#Python
+# Python
 *.pyc
+__pycache__/
 dist/
 build/
 *.egg-info/
 .pytest_cache/
 .coverage
-Node / Frontend
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Backend uploads (CV files)
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Node / Frontend
 node_modules/
 .next/
 out/
 coverage/
 
-#Database
+# Database
 *.sqlite3
 *.db
 postgres_data/
-OS specific
+
+# OS specific
 .AppleDouble
 .LSOverride
 Thumbs.db

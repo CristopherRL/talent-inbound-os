@@ -1,0 +1,13 @@
+{
+  "name": "talent-inbound-os",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"pnpm run dev:backend\" \"pnpm run dev:frontend\"",
+    "dev:backend": "cd backend && uvicorn src.talent_inbound.main:app --reload --port 8000",
+    "dev:frontend": "cd frontend && pnpm run dev",
+    "dev:worker": "cd backend && arq src.talent_inbound.worker.WorkerSettings"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
