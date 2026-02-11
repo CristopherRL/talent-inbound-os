@@ -3,9 +3,17 @@
 from dependency_injector import containers, providers
 
 from talent_inbound.config import Settings
+from talent_inbound.modules.auth.application.get_current_user import GetCurrentUser
+from talent_inbound.modules.auth.application.login_user import LoginUser
+from talent_inbound.modules.auth.application.register_user import RegisterUser
+from talent_inbound.modules.auth.infrastructure.password import BcryptPasswordHasher
+from talent_inbound.modules.auth.infrastructure.repositories import (
+    SqlAlchemyUserRepository,
+)
 from talent_inbound.shared.infrastructure.database import (
     create_engine,
     create_session_factory,
+    get_session,
 )
 from talent_inbound.shared.infrastructure.event_bus import InProcessEventBus
 
@@ -15,7 +23,8 @@ class Container(containers.DeclarativeContainer):
 
     wiring_config = containers.WiringConfiguration(
         modules=[
-            # Module routers will be added here as they are implemented
+            "talent_inbound.modules.auth.presentation.router",
+            "talent_inbound.modules.auth.presentation.dependencies",
         ]
     )
 
@@ -33,4 +42,39 @@ class Container(containers.DeclarativeContainer):
         engine=db_engine,
     )
 
+    db_session = providers.Resource(
+        get_session,
+        session_factory=db_session_factory,
+    )
+
     event_bus = providers.Singleton(InProcessEventBus)
+
+    # --- Auth module ---
+    password_hasher = providers.Singleton(BcryptPasswordHasher)
+
+    user_repo = providers.Factory(
+        SqlAlchemyUserRepository,
+        session=db_session,
+    )
+
+    register_user_uc = providers.Factory(
+        RegisterUser,
+        user_repo=user_repo,
+        password_hasher=password_hasher,
+        event_bus=event_bus,
+    )
+
+    login_user_uc = providers.Factory(
+        LoginUser,
+        user_repo=user_repo,
+        password_hasher=password_hasher,
+        jwt_secret=config.provided.jwt_secret_key,
+        access_token_expire_minutes=config.provided.jwt_access_token_expire_minutes,
+        refresh_token_expire_days=config.provided.jwt_refresh_token_expire_days,
+    )
+
+    get_current_user_uc = providers.Factory(
+        GetCurrentUser,
+        user_repo=user_repo,
+        jwt_secret=config.provided.jwt_secret_key,
+    )

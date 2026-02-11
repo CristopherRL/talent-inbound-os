@@ -11,7 +11,7 @@ from talent_inbound.shared.infrastructure.database import Base
 
 # Import all ORM models so Alembic can detect them for autogenerate.
 # Add new model imports here as modules are implemented.
-# from talent_inbound.modules.auth.infrastructure.orm_models import *  # noqa
+from talent_inbound.modules.auth.infrastructure.orm_models import *  # noqa: F401,F403
 # from talent_inbound.modules.profile.infrastructure.orm_models import *  # noqa
 # from talent_inbound.modules.ingestion.infrastructure.orm_models import *  # noqa
 # from talent_inbound.modules.opportunities.infrastructure.orm_models import *  # noqa

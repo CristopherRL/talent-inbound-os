@@ -10,6 +10,7 @@ CLAUDE.md
 *.log
 .env
 .venv/
+venv/
 env/
 pycache/
 
