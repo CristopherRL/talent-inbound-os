@@ -22,12 +22,17 @@ export default function DashboardPage() {
           <h1 className="text-xl font-bold text-gray-900">
             Talent Inbound OS
           </h1>
-          <button
-            onClick={handleLogout}
-            className="text-sm text-gray-600 hover:text-gray-900 px-3 py-1 rounded border border-gray-300 hover:border-gray-400"
-          >
-            Logout
-          </button>
+          <div className="flex items-center gap-4">
+            <a href="/profile" className="text-sm text-blue-600 hover:text-blue-500">
+              Profile
+            </a>
+            <button
+              onClick={handleLogout}
+              className="text-sm text-gray-600 hover:text-gray-900 px-3 py-1 rounded border border-gray-300 hover:border-gray-400"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 

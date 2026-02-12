@@ -1,7 +1,7 @@
 /**
- * Next.js middleware for auth-based route protection.
+ * Next.js proxy for auth-based route protection (renamed from middleware in Next.js 16).
  *
- * This runs on the Edge runtime BEFORE a page is rendered.
+ * This runs on the Node.js runtime BEFORE a page is rendered.
  * It checks for the access_token cookie:
  * - If the user is NOT authenticated and tries to access a protected page → redirect to /login
  * - If the user IS authenticated and tries to access /login or /register → redirect to /dashboard
@@ -16,7 +16,7 @@ import { NextRequest, NextResponse } from "next/server";
 const PROTECTED_PATHS = ["/dashboard", "/profile", "/ingest", "/chat"];
 const AUTH_PATHS = ["/login", "/register"];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasToken = request.cookies.has("access_token");
 

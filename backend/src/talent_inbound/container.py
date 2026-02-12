@@ -10,6 +10,14 @@ from talent_inbound.modules.auth.infrastructure.password import BcryptPasswordHa
 from talent_inbound.modules.auth.infrastructure.repositories import (
     SqlAlchemyUserRepository,
 )
+from talent_inbound.modules.profile.application.get_profile import GetProfile
+from talent_inbound.modules.profile.application.update_profile import UpdateProfile
+from talent_inbound.modules.profile.application.upload_cv import UploadCV
+from talent_inbound.modules.profile.infrastructure.cv_parser import CVParser
+from talent_inbound.modules.profile.infrastructure.repositories import (
+    SqlAlchemyProfileRepository,
+)
+from talent_inbound.modules.profile.infrastructure.storage import LocalStorageBackend
 from talent_inbound.shared.infrastructure.database import (
     create_engine,
     create_session_factory,
@@ -25,6 +33,7 @@ class Container(containers.DeclarativeContainer):
         modules=[
             "talent_inbound.modules.auth.presentation.router",
             "talent_inbound.modules.auth.presentation.dependencies",
+            "talent_inbound.modules.profile.presentation.router",
         ]
     )
 
@@ -77,4 +86,34 @@ class Container(containers.DeclarativeContainer):
         GetCurrentUser,
         user_repo=user_repo,
         jwt_secret=config.provided.jwt_secret_key,
+    )
+
+    # --- Profile module ---
+    storage_backend = providers.Singleton(
+        LocalStorageBackend,
+        upload_dir=config.provided.upload_dir,
+    )
+
+    cv_parser = providers.Singleton(CVParser)
+
+    profile_repo = providers.Factory(
+        SqlAlchemyProfileRepository,
+        session=db_session,
+    )
+
+    update_profile_uc = providers.Factory(
+        UpdateProfile,
+        profile_repo=profile_repo,
+    )
+
+    upload_cv_uc = providers.Factory(
+        UploadCV,
+        profile_repo=profile_repo,
+        storage_backend=storage_backend,
+        cv_parser=cv_parser,
+    )
+
+    get_profile_uc = providers.Factory(
+        GetProfile,
+        profile_repo=profile_repo,
     )
