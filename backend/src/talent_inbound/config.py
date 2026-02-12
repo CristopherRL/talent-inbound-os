@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     environment: str = "development"
     upload_dir: str = "./uploads"
 
+    # Ingestion
+    max_message_length: int = 50000
+
     @property
     def is_development(self) -> bool:
         return self.environment == "development"

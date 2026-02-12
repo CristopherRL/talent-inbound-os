@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from talent_inbound.config import get_settings
 from talent_inbound.container import Container
+from talent_inbound.shared.infrastructure.database import DBSessionMiddleware
 from talent_inbound.shared.infrastructure.logging import configure_logging
 from talent_inbound.shared.infrastructure.middleware import RequestLoggingMiddleware
 
@@ -44,7 +45,7 @@ def create_app() -> FastAPI:
     # Request logging
     app.add_middleware(RequestLoggingMiddleware)
 
-    # API routes
+    # API routes (must be registered on FastAPI app BEFORE ASGI wrapping)
     from talent_inbound.api.v1.router import v1_router
 
     app.include_router(v1_router, prefix="/api/v1")
@@ -54,7 +55,13 @@ def create_app() -> FastAPI:
     async def health():
         return {"status": "ok"}
 
-    return app
+    # DB session per request (commit on success, rollback on error).
+    # Wraps the entire FastAPI ASGI app as the outermost middleware so
+    # every HTTP request gets its own AsyncSession via ContextVar.
+    session_factory = container.db_session_factory()
+    wrapped = DBSessionMiddleware(app, session_factory=session_factory)
+
+    return wrapped  # type: ignore[return-value]
 
 
 app = create_app()

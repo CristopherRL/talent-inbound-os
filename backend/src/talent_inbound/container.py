@@ -10,6 +10,13 @@ from talent_inbound.modules.auth.infrastructure.password import BcryptPasswordHa
 from talent_inbound.modules.auth.infrastructure.repositories import (
     SqlAlchemyUserRepository,
 )
+from talent_inbound.modules.ingestion.application.submit_message import SubmitMessage
+from talent_inbound.modules.ingestion.infrastructure.repositories import (
+    SqlAlchemyInteractionRepository,
+)
+from talent_inbound.modules.opportunities.infrastructure.repositories import (
+    SqlAlchemyOpportunityRepository,
+)
 from talent_inbound.modules.profile.application.get_profile import GetProfile
 from talent_inbound.modules.profile.application.update_profile import UpdateProfile
 from talent_inbound.modules.profile.application.upload_cv import UploadCV
@@ -21,7 +28,7 @@ from talent_inbound.modules.profile.infrastructure.storage import LocalStorageBa
 from talent_inbound.shared.infrastructure.database import (
     create_engine,
     create_session_factory,
-    get_session,
+    get_current_session,
 )
 from talent_inbound.shared.infrastructure.event_bus import InProcessEventBus
 
@@ -34,6 +41,8 @@ class Container(containers.DeclarativeContainer):
             "talent_inbound.modules.auth.presentation.router",
             "talent_inbound.modules.auth.presentation.dependencies",
             "talent_inbound.modules.profile.presentation.router",
+            "talent_inbound.modules.ingestion.presentation.router",
+            "talent_inbound.modules.opportunities.presentation.router",
         ]
     )
 
@@ -51,10 +60,7 @@ class Container(containers.DeclarativeContainer):
         engine=db_engine,
     )
 
-    db_session = providers.Resource(
-        get_session,
-        session_factory=db_session_factory,
-    )
+    db_session = providers.Callable(get_current_session)
 
     event_bus = providers.Singleton(InProcessEventBus)
 
@@ -116,4 +122,25 @@ class Container(containers.DeclarativeContainer):
     get_profile_uc = providers.Factory(
         GetProfile,
         profile_repo=profile_repo,
+    )
+
+    # --- Ingestion module ---
+    interaction_repo = providers.Factory(
+        SqlAlchemyInteractionRepository,
+        session=db_session,
+    )
+
+    # --- Opportunities module ---
+    opportunity_repo = providers.Factory(
+        SqlAlchemyOpportunityRepository,
+        session=db_session,
+    )
+
+    # --- Ingestion use cases ---
+    submit_message_uc = providers.Factory(
+        SubmitMessage,
+        interaction_repo=interaction_repo,
+        opportunity_repo=opportunity_repo,
+        event_bus=event_bus,
+        max_message_length=config.provided.max_message_length,
     )

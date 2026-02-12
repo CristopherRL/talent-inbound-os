@@ -1,0 +1,88 @@
+"""Ingestion API router — message submission and retrieval."""
+
+from dependency_injector.wiring import Provide, inject
+from fastapi import APIRouter, Depends, HTTPException, status
+
+from talent_inbound.container import Container
+from talent_inbound.modules.auth.domain.entities import User
+from talent_inbound.modules.auth.presentation.dependencies import get_current_user
+from talent_inbound.modules.ingestion.application.submit_message import (
+    SubmitMessage,
+    SubmitMessageCommand,
+)
+from talent_inbound.modules.ingestion.domain.exceptions import (
+    ContentTooLongError,
+    DuplicateInteractionError,
+    EmptyContentError,
+)
+from talent_inbound.modules.ingestion.domain.repositories import InteractionRepository
+from talent_inbound.modules.ingestion.presentation.schemas import (
+    InteractionResponse,
+    SubmitMessageRequest,
+    SubmitMessageResponse,
+)
+
+router = APIRouter(prefix="/ingestion", tags=["ingestion"])
+
+
+@router.post(
+    "/messages",
+    response_model=SubmitMessageResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+@inject
+async def submit_message(
+    body: SubmitMessageRequest,
+    current_user: User = Depends(get_current_user),
+    submit_message_uc: SubmitMessage = Depends(Provide[Container.submit_message_uc]),
+) -> SubmitMessageResponse:
+    try:
+        result = await submit_message_uc.execute(
+            SubmitMessageCommand(
+                candidate_id=current_user.id,
+                raw_content=body.raw_content,
+                source=body.source.value,
+            )
+        )
+    except EmptyContentError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except ContentTooLongError as e:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=str(e)
+        )
+    except DuplicateInteractionError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    return SubmitMessageResponse(
+        interaction_id=result.interaction.id,
+        opportunity_id=result.opportunity.id,
+        status=result.opportunity.status.value,
+    )
+
+
+@router.get("/messages/{interaction_id}", response_model=InteractionResponse)
+@inject
+async def get_interaction(
+    interaction_id: str,
+    current_user: User = Depends(get_current_user),
+    interaction_repo: InteractionRepository = Depends(
+        Provide[Container.interaction_repo]
+    ),
+) -> InteractionResponse:
+    interaction = await interaction_repo.find_by_id(interaction_id)
+    if interaction is None or interaction.candidate_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Interaction not found."
+        )
+    return InteractionResponse(
+        id=interaction.id,
+        opportunity_id=interaction.opportunity_id,
+        source=interaction.source.value,
+        interaction_type=interaction.interaction_type.value,
+        processing_status=interaction.processing_status.value,
+        classification=(
+            interaction.classification.value if interaction.classification else None
+        ),
+        pipeline_log=interaction.pipeline_log,
+        created_at=interaction.created_at,
+    )

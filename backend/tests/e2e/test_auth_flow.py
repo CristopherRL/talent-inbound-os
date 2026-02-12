@@ -2,20 +2,11 @@
 
 These tests require a running database (via testcontainers in CI, or Docker locally).
 They exercise the real FastAPI app with httpx, testing the full stack.
+The client fixture (from conftest.py) uses rollback-only sessions — no data persists.
 """
 
 import pytest
-from httpx import ASGITransport, AsyncClient
-
-from talent_inbound.main import create_app
-
-
-@pytest.fixture
-async def client():
-    app = create_app()
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        yield ac
+from httpx import AsyncClient
 
 
 @pytest.mark.e2e

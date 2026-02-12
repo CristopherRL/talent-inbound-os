@@ -1,8 +1,20 @@
 """Arq worker settings for background job processing."""
 
+import structlog
 from arq.connections import RedisSettings
 
 from talent_inbound.config import get_settings
+
+logger = structlog.get_logger()
+
+
+async def process_pipeline(ctx: dict, interaction_id: str) -> None:
+    """Stub pipeline job — actual AI pipeline logic added in US4 (Phase 6)."""
+    logger.info(
+        "pipeline_job_received",
+        interaction_id=interaction_id,
+        status="stub",
+    )
 
 
 async def startup(ctx: dict) -> None:
@@ -15,17 +27,10 @@ async def shutdown(ctx: dict) -> None:
     """Called once when the worker shuts down."""
 
 
-# Pipeline job stubs — real implementations added in US3/US4
-# async def process_pipeline(ctx: dict, interaction_id: str) -> None:
-#     pass
-
-
 class WorkerSettings:
     """Arq worker configuration."""
 
-    functions: list = [
-        # process_pipeline,  # Added in US3
-    ]
+    functions = [process_pipeline]
     on_startup = startup
     on_shutdown = shutdown
 

@@ -1,21 +1,11 @@
 """E2E test for profile CRUD and CV upload.
 
 Tests the full flow: register → login → create profile → update → upload CV → download CV.
-Requires a running database (Docker PostgreSQL).
+The client fixture (from conftest.py) uses rollback-only sessions — no data persists.
 """
 
 import pytest
-from httpx import ASGITransport, AsyncClient
-
-from talent_inbound.main import create_app
-
-
-@pytest.fixture
-async def client():
-    app = create_app()
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        yield ac
+from httpx import AsyncClient
 
 
 async def _register_and_login(client: AsyncClient, email: str) -> dict:
