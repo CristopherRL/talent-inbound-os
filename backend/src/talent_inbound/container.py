@@ -14,6 +14,8 @@ from talent_inbound.modules.ingestion.application.submit_message import SubmitMe
 from talent_inbound.modules.ingestion.infrastructure.repositories import (
     SqlAlchemyInteractionRepository,
 )
+from talent_inbound.modules.pipeline.infrastructure.model_router import ModelRouter
+from talent_inbound.modules.pipeline.infrastructure.sse import SSEEmitter
 from talent_inbound.modules.opportunities.infrastructure.repositories import (
     SqlAlchemyOpportunityRepository,
 )
@@ -43,6 +45,7 @@ class Container(containers.DeclarativeContainer):
             "talent_inbound.modules.profile.presentation.router",
             "talent_inbound.modules.ingestion.presentation.router",
             "talent_inbound.modules.opportunities.presentation.router",
+            "talent_inbound.modules.pipeline.presentation.router",
         ]
     )
 
@@ -144,3 +147,12 @@ class Container(containers.DeclarativeContainer):
         event_bus=event_bus,
         max_message_length=config.provided.max_message_length,
     )
+
+    # --- Pipeline module ---
+    model_router = providers.Singleton(
+        ModelRouter,
+        openai_api_key=config.provided.openai_api_key,
+        anthropic_api_key=config.provided.anthropic_api_key,
+    )
+
+    sse_emitter = providers.Singleton(SSEEmitter)

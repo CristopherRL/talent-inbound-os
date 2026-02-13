@@ -150,7 +150,30 @@ export default function DashboardPage() {
                   <p className="text-sm text-gray-600 truncate">
                     {opp.role_title || "Role not extracted yet"}
                   </p>
+                  {/* Tech stack chips */}
+                  {opp.tech_stack.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {opp.tech_stack.slice(0, 5).map((tech) => (
+                        <span
+                          key={tech}
+                          className="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600"
+                        >
+                          {tech}
+                        </span>
+                      ))}
+                      {opp.tech_stack.length > 5 && (
+                        <span className="text-xs text-gray-400">
+                          +{opp.tech_stack.length - 5} more
+                        </span>
+                      )}
+                    </div>
+                  )}
                   <div className="flex items-center gap-4 mt-1">
+                    {opp.work_model && (
+                      <span className="text-xs text-gray-500 font-medium">
+                        {opp.work_model}
+                      </span>
+                    )}
                     {opp.recruiter_name && (
                       <span className="text-xs text-gray-400">
                         via {opp.recruiter_name}

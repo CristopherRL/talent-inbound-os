@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import datetime, timezone
+from enum import StrEnum
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY
@@ -101,19 +102,25 @@ class OpportunityModel(Base):
             salary_range=opportunity.salary_range,
             tech_stack=opportunity.tech_stack,
             work_model=(
-                opportunity.work_model.value if opportunity.work_model else None
+                opportunity.work_model.value
+                if isinstance(opportunity.work_model, StrEnum)
+                else opportunity.work_model
             ),
             recruiter_name=opportunity.recruiter_name,
             recruiter_type=(
                 opportunity.recruiter_type.value
-                if opportunity.recruiter_type
-                else None
+                if isinstance(opportunity.recruiter_type, StrEnum)
+                else opportunity.recruiter_type
             ),
             recruiter_company=opportunity.recruiter_company,
             match_score=opportunity.match_score,
             match_reasoning=opportunity.match_reasoning,
             missing_fields=opportunity.missing_fields,
-            status=opportunity.status.value,
+            status=(
+                opportunity.status.value
+                if isinstance(opportunity.status, StrEnum)
+                else opportunity.status
+            ),
             is_archived=opportunity.is_archived,
             last_interaction_at=opportunity.last_interaction_at,
             created_at=opportunity.created_at,
