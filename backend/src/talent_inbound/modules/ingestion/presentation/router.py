@@ -65,9 +65,19 @@ async def submit_message(
 
     # Run pipeline inline (mock agents are instant; real LLM would use Arq worker)
     try:
-        from talent_inbound.modules.opportunities.domain.repositories import OpportunityRepository
+        from talent_inbound.config import get_settings as _gs
+        _settings = _gs()
+        scoring_weights = {
+            "base": _settings.scoring_base,
+            "skills": _settings.scoring_skills_weight,
+            "wm_match": _settings.scoring_work_model_match,
+            "wm_mismatch": _settings.scoring_work_model_mismatch,
+            "sal_meets": _settings.scoring_salary_meets_min,
+            "sal_below": _settings.scoring_salary_below_min,
+        }
         opp_repo = Container.opportunity_repo()
-        graph = build_main_pipeline(model_router)
+        profile_repo = Container.profile_repo()
+        graph = build_main_pipeline(model_router, profile_repo=profile_repo, scoring_weights=scoring_weights)
         pipeline_uc = ProcessPipeline(
             interaction_repo=interaction_repo,
             opportunity_repo=opp_repo,

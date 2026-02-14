@@ -1,13 +1,17 @@
 """FastAPI application factory."""
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy.exc import OperationalError
 
 from talent_inbound.config import get_settings
 from talent_inbound.container import Container
 from talent_inbound.shared.infrastructure.database import DBSessionMiddleware
-from talent_inbound.shared.infrastructure.logging import configure_logging
+from talent_inbound.shared.infrastructure.logging import configure_logging, get_logger
 from talent_inbound.shared.infrastructure.middleware import RequestLoggingMiddleware
+
+logger = get_logger(__name__)
 
 
 def create_app() -> FastAPI:
@@ -50,10 +54,37 @@ def create_app() -> FastAPI:
 
     app.include_router(v1_router, prefix="/api/v1")
 
-    # Health check (unversioned)
+    # Global handler: database connection errors → 503
+    async def _db_unavailable_response(
+        request: Request, exc: Exception
+    ) -> JSONResponse:
+        logger.error("database_connection_failed", error=type(exc).__name__, detail=str(exc))
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": "Database is unavailable. Please ensure PostgreSQL is running.",
+            },
+        )
+
+    app.exception_handler(OperationalError)(_db_unavailable_response)
+    app.exception_handler(ConnectionRefusedError)(_db_unavailable_response)
+
+    # Health check (unversioned) — pings DB to verify connectivity
     @app.get("/health")
     async def health():
-        return {"status": "ok"}
+        from sqlalchemy import text
+
+        from talent_inbound.shared.infrastructure.database import get_current_session
+
+        try:
+            session = get_current_session()
+            await session.execute(text("SELECT 1"))
+            db_status = "ok"
+        except Exception:
+            db_status = "unavailable"
+
+        status = "ok" if db_status == "ok" else "degraded"
+        return {"status": status, "database": db_status}
 
     # DB session per request (commit on success, rollback on error).
     # Wraps the entire FastAPI ASGI app as the outermost middleware so

@@ -58,6 +58,7 @@ class ProcessPipeline:
             "raw_input": interaction.raw_content,
             "interaction_id": interaction_id,
             "opportunity_id": opportunity_id,
+            "candidate_id": interaction.candidate_id,
             "pipeline_log": [],
         }
 
@@ -91,6 +92,7 @@ class ProcessPipeline:
                 if opportunity:
                     final_status = self._determine_status(result)
                     self._apply_extracted_data(opportunity, result)
+                    self._apply_scoring(opportunity, result)
                     opportunity.change_status(
                         final_status,
                         triggered_by=TransitionTrigger.SYSTEM,
@@ -164,3 +166,10 @@ class ProcessPipeline:
         if extracted.get("recruiter_company"):
             opportunity.recruiter_company = extracted["recruiter_company"]
         opportunity.missing_fields = extracted.get("missing_fields", [])
+
+    def _apply_scoring(self, opportunity: Opportunity, result: dict) -> None:
+        """Apply match score and reasoning from the Analyst."""
+        if result.get("match_score") is not None:
+            opportunity.match_score = result["match_score"]
+        if result.get("match_reasoning"):
+            opportunity.match_reasoning = result["match_reasoning"]

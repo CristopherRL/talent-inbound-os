@@ -1,13 +1,16 @@
 """Integration test for the full pipeline graph with mock LLM.
 
-Tests the complete LangGraph flow: guardrail → gatekeeper → extractor
-using the heuristic/mock fallbacks (no real LLM calls).
+Tests the complete LangGraph flow using the heuristic/mock fallbacks
+(no real LLM calls). Pipeline steps read from config.
 """
 
 import pytest
 
+from talent_inbound.config import get_settings
 from talent_inbound.modules.pipeline.domain.state import PipelineState
 from talent_inbound.modules.pipeline.infrastructure.graphs import build_main_pipeline
+
+PIPELINE_STEPS = get_settings().pipeline_steps
 
 
 @pytest.mark.integration
@@ -27,13 +30,14 @@ class TestPipelineGraph:
             ),
             "interaction_id": "test-int-1",
             "opportunity_id": "test-opp-1",
+            "candidate_id": "test-user",
             "pipeline_log": [],
         }
         result = await graph.ainvoke(initial)
 
-        # All three nodes should have executed
+        # All pipeline steps should have executed
         steps = [log["step"] for log in result["pipeline_log"]]
-        assert steps == ["guardrail", "gatekeeper", "extractor"]
+        assert steps == PIPELINE_STEPS
 
         # Classification
         assert result["classification"] == "REAL_OFFER"

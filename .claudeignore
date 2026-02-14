@@ -1,0 +1,77 @@
+# ============================================
+# .claudeignore - talent-inbound-os
+# Reduces memory usage for Claude Code
+# ============================================
+
+# === Node / Frontend ===
+node_modules/
+.next/
+frontend/.next/
+frontend/node_modules/
+frontend/out/
+frontend/.turbo/
+.pnpm-store/
+
+# === Python / Backend ===
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.env/
+env/
+backend/.venv/
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# === Database & Migrations (versions can be heavy) ===
+backend/alembic/versions/*.py
+
+# === Uploads & Local Storage ===
+backend/uploads/
+uploads/
+
+# === Docker volumes & infra ===
+infra/data/
+infra/volumes/
+.docker/
+
+# === IDE / Editor ===
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# === OS files ===
+.DS_Store
+Thumbs.db
+
+# === Git ===
+.git/
+
+# === Logs & temp ===
+*.log
+logs/
+tmp/
+temp/
+
+# === Coverage & test artifacts ===
+htmlcov/
+.coverage
+coverage/
+frontend/coverage/
+
+# === Lock files (large) ===
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+poetry.lock
+
+# === AI / LLM traces (can be very large) ===
+.langsmith/
+.phoenix/
+traces/

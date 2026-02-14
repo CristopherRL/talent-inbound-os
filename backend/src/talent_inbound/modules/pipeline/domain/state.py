@@ -43,6 +43,7 @@ class PipelineState(TypedDict, total=False):
     raw_input: str
     interaction_id: str
     opportunity_id: str
+    candidate_id: str
 
     # Guardrail output
     sanitized_text: str

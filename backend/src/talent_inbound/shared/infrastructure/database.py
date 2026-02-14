@@ -4,6 +4,7 @@ from contextvars import ContextVar
 from typing import Any
 
 import structlog
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -66,11 +67,25 @@ class DBSessionMiddleware:
             await self.app(scope, receive, send)
             return
 
+        _db_errors = (OperationalError, ConnectionRefusedError)
+
         async with self.session_factory() as session:
             token = _current_session.set(session)
             try:
                 await self.app(scope, receive, send)
-                await session.commit()
+                try:
+                    await session.commit()
+                except _db_errors:
+                    # DB unreachable during commit — response already sent,
+                    # just log it so uvicorn doesn't crash with a traceback.
+                    logger.warning("db_commit_failed_connection_unavailable")
+            except _db_errors:
+                # DB unreachable during request handling — rollback safely.
+                try:
+                    await session.rollback()
+                except Exception:
+                    pass
+                raise
             except Exception:
                 await session.rollback()
                 raise

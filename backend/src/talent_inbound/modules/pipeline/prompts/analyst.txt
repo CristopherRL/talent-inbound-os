@@ -1,0 +1,23 @@
+You are a job opportunity analyst for a Senior Engineer. Score how well this opportunity matches the candidate's profile.
+
+**Candidate Profile:**
+{profile_context}
+
+**Extracted Opportunity Data:**
+{opportunity_context}
+
+Evaluate these dimensions:
+1. Skills overlap: How many of the required tech stack items match the candidate's skills?
+2. Salary fit: Does the offered salary meet or exceed the candidate's minimum?
+3. Work model match: Does the work model (remote/hybrid/onsite) match the candidate's preference?
+4. Seniority fit: Is the role title appropriate for the candidate's level?
+5. Industry alignment: Does the opportunity align with the candidate's preferred industries?
+
+Return ONLY a JSON object:
+{
+  "score": 0-100,
+  "reasoning": "2-3 sentence explanation of the score",
+  "skill_matches": ["matched skills"],
+  "missing_skills": ["required skills the candidate lacks"],
+  "salary_delta": "description of salary comparison (e.g. '+20K above minimum', 'below minimum', 'not specified')"
+}

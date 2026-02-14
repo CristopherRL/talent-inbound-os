@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiGet, apiPost } from "@/lib/api";
+import {
+  SCORING_THRESHOLD_HIGH,
+  SCORING_THRESHOLD_MEDIUM,
+} from "@/config/scoring";
 
 interface OpportunityItem {
   id: string;
@@ -28,11 +32,30 @@ const STATUS_COLORS: Record<string, string> = {
   GHOSTED: "bg-orange-100 text-orange-700",
 };
 
+type SortField = "date" | "score";
+
+function sortOpportunities(
+  items: OpportunityItem[],
+  field: SortField,
+): OpportunityItem[] {
+  return [...items].sort((a, b) => {
+    if (field === "score") {
+      const sa = a.match_score ?? -1;
+      const sb = b.match_score ?? -1;
+      return sb - sa; // highest score first
+    }
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [opportunities, setOpportunities] = useState<OpportunityItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<SortField>("date");
+
+  const sorted = sortOpportunities(opportunities, sortBy);
 
   useEffect(() => {
     async function fetchOpportunities() {
@@ -87,12 +110,30 @@ export default function DashboardPage() {
         {/* Action bar */}
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-lg font-medium text-gray-900">Opportunities</h2>
-          <a
-            href="/ingest"
-            className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          >
-            + New Offer
-          </a>
+          <div className="flex items-center gap-3">
+            {opportunities.length > 1 && (
+              <div className="flex items-center rounded-md border border-gray-300 bg-white text-sm">
+                <button
+                  onClick={() => setSortBy("date")}
+                  className={`px-3 py-1.5 rounded-l-md ${sortBy === "date" ? "bg-gray-100 font-medium text-gray-900" : "text-gray-600 hover:text-gray-900"}`}
+                >
+                  Newest
+                </button>
+                <button
+                  onClick={() => setSortBy("score")}
+                  className={`px-3 py-1.5 rounded-r-md border-l border-gray-300 ${sortBy === "score" ? "bg-gray-100 font-medium text-gray-900" : "text-gray-600 hover:text-gray-900"}`}
+                >
+                  Best Match
+                </button>
+              </div>
+            )}
+            <a
+              href="/ingest"
+              className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              + New Offer
+            </a>
+          </div>
         </div>
 
         {/* Loading state */}
@@ -131,7 +172,7 @@ export default function DashboardPage() {
         {/* Opportunity list */}
         {!loading && opportunities.length > 0 && (
           <div className="space-y-3">
-            {opportunities.map((opp) => (
+            {sorted.map((opp) => (
               <div
                 key={opp.id}
                 className="bg-white rounded-lg shadow p-4 flex items-center justify-between hover:shadow-md transition-shadow"
@@ -194,9 +235,9 @@ export default function DashboardPage() {
                   {opp.match_score !== null && (
                     <span
                       className={`text-sm font-semibold ${
-                        opp.match_score >= 70
+                        opp.match_score >= SCORING_THRESHOLD_HIGH
                           ? "text-green-600"
-                          : opp.match_score >= 40
+                          : opp.match_score >= SCORING_THRESHOLD_MEDIUM
                             ? "text-yellow-600"
                             : "text-red-500"
                       }`}

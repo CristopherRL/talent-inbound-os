@@ -40,6 +40,21 @@ class Settings(BaseSettings):
     # Ingestion
     max_message_length: int = 50000
 
+    # Pipeline steps (ordered agent sequence for the main pipeline)
+    pipeline_steps: list[str] = ["guardrail", "gatekeeper", "extractor", "analyst"]
+
+    # Scoring weights (Analyst agent)
+    scoring_base: int = 50
+    scoring_skills_weight: int = 30
+    scoring_work_model_match: int = 10
+    scoring_work_model_mismatch: int = -5
+    scoring_salary_meets_min: int = 10
+    scoring_salary_below_min: int = -10
+
+    # Scoring thresholds (classify score into high / medium / low)
+    scoring_threshold_high: int = 70
+    scoring_threshold_medium: int = 40
+
     @property
     def is_development(self) -> bool:
         return self.environment == "development"
