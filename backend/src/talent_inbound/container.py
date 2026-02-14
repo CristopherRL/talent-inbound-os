@@ -14,6 +14,14 @@ from talent_inbound.modules.ingestion.application.submit_message import SubmitMe
 from talent_inbound.modules.ingestion.infrastructure.repositories import (
     SqlAlchemyInteractionRepository,
 )
+from talent_inbound.modules.opportunities.application.archive import (
+    ArchiveOpportunity,
+    UnarchiveOpportunity,
+)
+from talent_inbound.modules.opportunities.application.change_status import ChangeStatus
+from talent_inbound.modules.opportunities.application.get_stale import (
+    GetStaleOpportunities,
+)
 from talent_inbound.modules.pipeline.infrastructure.model_router import ModelRouter
 from talent_inbound.modules.pipeline.infrastructure.sse import SSEEmitter
 from talent_inbound.modules.opportunities.infrastructure.repositories import (
@@ -148,11 +156,36 @@ class Container(containers.DeclarativeContainer):
         max_message_length=config.provided.max_message_length,
     )
 
+    # --- Opportunities use cases ---
+    change_status_uc = providers.Factory(
+        ChangeStatus,
+        opportunity_repo=opportunity_repo,
+    )
+
+    archive_uc = providers.Factory(
+        ArchiveOpportunity,
+        opportunity_repo=opportunity_repo,
+    )
+
+    unarchive_uc = providers.Factory(
+        UnarchiveOpportunity,
+        opportunity_repo=opportunity_repo,
+    )
+
+    get_stale_uc = providers.Factory(
+        GetStaleOpportunities,
+        opportunity_repo=opportunity_repo,
+        profile_repo=profile_repo,
+    )
+
     # --- Pipeline module ---
     model_router = providers.Singleton(
         ModelRouter,
         openai_api_key=config.provided.openai_api_key,
         anthropic_api_key=config.provided.anthropic_api_key,
+        provider=config.provided.llm_provider,
+        fast_model=config.provided.llm_fast_model,
+        smart_model=config.provided.llm_smart_model,
     )
 
     sse_emitter = providers.Singleton(SSEEmitter)

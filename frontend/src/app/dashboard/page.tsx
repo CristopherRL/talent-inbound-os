@@ -2,47 +2,43 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiGet, apiPost } from "@/lib/api";
+import { apiPost } from "@/lib/api";
 import {
   SCORING_THRESHOLD_HIGH,
   SCORING_THRESHOLD_MEDIUM,
 } from "@/config/scoring";
-
-interface OpportunityItem {
-  id: string;
-  company_name: string | null;
-  role_title: string | null;
-  status: string;
-  match_score: number | null;
-  missing_fields: string[];
-  tech_stack: string[];
-  work_model: string | null;
-  recruiter_name: string | null;
-  created_at: string;
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  NEW: "bg-gray-100 text-gray-700",
-  ANALYZING: "bg-blue-100 text-blue-700",
-  ACTION_REQUIRED: "bg-yellow-100 text-yellow-800",
-  REVIEWING: "bg-purple-100 text-purple-700",
-  INTERVIEWING: "bg-indigo-100 text-indigo-700",
-  OFFER: "bg-green-100 text-green-700",
-  REJECTED: "bg-red-100 text-red-700",
-  GHOSTED: "bg-orange-100 text-orange-700",
-};
+import OpportunityCard, {
+  type OpportunityCardData,
+} from "@/components/opportunity/OpportunityCard";
+import {
+  fetchOpportunities,
+  fetchStaleOpportunities,
+  type OpportunityListItem,
+  type StaleItem,
+} from "@/hooks/use-opportunities";
 
 type SortField = "date" | "score";
 
+const ALL_STATUSES = [
+  "NEW",
+  "ANALYZING",
+  "ACTION_REQUIRED",
+  "REVIEWING",
+  "INTERVIEWING",
+  "OFFER",
+  "REJECTED",
+  "GHOSTED",
+];
+
 function sortOpportunities(
-  items: OpportunityItem[],
+  items: OpportunityListItem[],
   field: SortField,
-): OpportunityItem[] {
+): OpportunityListItem[] {
   return [...items].sort((a, b) => {
     if (field === "score") {
       const sa = a.match_score ?? -1;
       const sb = b.match_score ?? -1;
-      return sb - sa; // highest score first
+      return sb - sa;
     }
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
@@ -50,18 +46,35 @@ function sortOpportunities(
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [opportunities, setOpportunities] = useState<OpportunityItem[]>([]);
+  const [opportunities, setOpportunities] = useState<OpportunityListItem[]>([]);
+  const [staleIds, setStaleIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortField>("date");
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [archivedFilter, setArchivedFilter] = useState<string>("");
+  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const sorted = sortOpportunities(opportunities, sortBy);
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const paged = sorted.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   useEffect(() => {
-    async function fetchOpportunities() {
+    async function load() {
       try {
-        const data = await apiGet<OpportunityItem[]>("/opportunities");
-        setOpportunities(data);
+        const params: { status?: string; archived?: string } = {};
+        if (statusFilter) params.status = statusFilter;
+        if (archivedFilter) params.archived = archivedFilter;
+
+        const [opps, stale] = await Promise.all([
+          fetchOpportunities(params),
+          fetchStaleOpportunities().catch(() => [] as StaleItem[]),
+        ]);
+        setOpportunities(opps);
+        setStaleIds(new Set(stale.map((s) => s.id)));
+        setCurrentPage(1);
       } catch (err: unknown) {
         const message =
           err instanceof Error ? err.message : "Failed to load opportunities.";
@@ -70,16 +83,23 @@ export default function DashboardPage() {
         setLoading(false);
       }
     }
-    fetchOpportunities();
-  }, []);
+    load();
+  }, [statusFilter, archivedFilter]);
 
   async function handleLogout() {
     try {
       await apiPost("/auth/logout");
     } catch {
-      // Even if the API call fails, redirect
+      // Redirect even if call fails
     }
     router.push("/login");
+  }
+
+  function toCardData(opp: OpportunityListItem): OpportunityCardData {
+    return {
+      ...opp,
+      is_stale: staleIds.has(opp.id),
+    };
   }
 
   return (
@@ -111,6 +131,32 @@ export default function DashboardPage() {
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-lg font-medium text-gray-900">Opportunities</h2>
           <div className="flex items-center gap-3">
+            {/* Status filter */}
+            <select
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); setLoading(true); }}
+              className="text-sm border border-gray-300 rounded-md px-2 py-1.5 text-gray-700 bg-white"
+            >
+              <option value="">All Statuses</option>
+              {ALL_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {s.replace("_", " ")}
+                </option>
+              ))}
+            </select>
+
+            {/* Archived filter */}
+            <select
+              value={archivedFilter}
+              onChange={(e) => { setArchivedFilter(e.target.value); setLoading(true); }}
+              className="text-sm border border-gray-300 rounded-md px-2 py-1.5 text-gray-700 bg-white"
+            >
+              <option value="">Active</option>
+              <option value="only">Archived</option>
+              <option value="all">All</option>
+            </select>
+
+            {/* Sort toggle */}
             {opportunities.length > 1 && (
               <div className="flex items-center rounded-md border border-gray-300 bg-white text-sm">
                 <button
@@ -127,6 +173,7 @@ export default function DashboardPage() {
                 </button>
               </div>
             )}
+
             <a
               href="/ingest"
               className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
@@ -136,21 +183,30 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Loading state */}
+        {/* Stale alerts */}
+        {staleIds.size > 0 && (
+          <div className="rounded-md bg-orange-50 border border-orange-200 p-3 mb-4">
+            <p className="text-sm text-orange-700">
+              {staleIds.size} opportunity{staleIds.size > 1 ? "ies" : "y"} may need follow-up (no activity in your configured threshold).
+            </p>
+          </div>
+        )}
+
+        {/* Loading */}
         {loading && (
           <div className="bg-white rounded-lg shadow p-6 text-center">
             <p className="text-gray-500">Loading opportunities...</p>
           </div>
         )}
 
-        {/* Error state */}
+        {/* Error */}
         {error && (
           <div className="rounded-md bg-red-50 border border-red-200 p-4 mb-4">
             <p className="text-sm text-red-700">{error}</p>
           </div>
         )}
 
-        {/* Empty state */}
+        {/* Empty */}
         {!loading && !error && opportunities.length === 0 && (
           <div className="bg-white rounded-lg shadow p-6 text-center">
             <h3 className="text-base font-medium text-gray-900">
@@ -171,84 +227,59 @@ export default function DashboardPage() {
 
         {/* Opportunity list */}
         {!loading && opportunities.length > 0 && (
-          <div className="space-y-3">
-            {sorted.map((opp) => (
-              <div
-                key={opp.id}
-                className="bg-white rounded-lg shadow p-4 flex items-center justify-between hover:shadow-md transition-shadow"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-1">
-                    <h3 className="text-sm font-medium text-gray-900 truncate">
-                      {opp.company_name || "Unknown Company"}
-                    </h3>
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[opp.status] || "bg-gray-100 text-gray-700"}`}
-                    >
-                      {opp.status.replace("_", " ")}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-600 truncate">
-                    {opp.role_title || "Role not extracted yet"}
-                  </p>
-                  {/* Tech stack chips */}
-                  {opp.tech_stack.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {opp.tech_stack.slice(0, 5).map((tech) => (
-                        <span
-                          key={tech}
-                          className="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600"
-                        >
-                          {tech}
-                        </span>
-                      ))}
-                      {opp.tech_stack.length > 5 && (
-                        <span className="text-xs text-gray-400">
-                          +{opp.tech_stack.length - 5} more
-                        </span>
-                      )}
-                    </div>
-                  )}
-                  <div className="flex items-center gap-4 mt-1">
-                    {opp.work_model && (
-                      <span className="text-xs text-gray-500 font-medium">
-                        {opp.work_model}
-                      </span>
-                    )}
-                    {opp.recruiter_name && (
-                      <span className="text-xs text-gray-400">
-                        via {opp.recruiter_name}
-                      </span>
-                    )}
-                    <span className="text-xs text-gray-400">
-                      {new Date(opp.created_at).toLocaleDateString()}
-                    </span>
-                    {opp.missing_fields.length > 0 && (
-                      <span className="text-xs text-yellow-600">
-                        {opp.missing_fields.length} missing field
-                        {opp.missing_fields.length > 1 ? "s" : ""}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 ml-4">
-                  {opp.match_score !== null && (
-                    <span
-                      className={`text-sm font-semibold ${
-                        opp.match_score >= SCORING_THRESHOLD_HIGH
-                          ? "text-green-600"
-                          : opp.match_score >= SCORING_THRESHOLD_MEDIUM
-                            ? "text-yellow-600"
-                            : "text-red-500"
-                      }`}
-                    >
-                      {opp.match_score}%
-                    </span>
-                  )}
-                </div>
+          <>
+            <div className="space-y-3">
+              {paged.map((opp) => (
+                <OpportunityCard
+                  key={opp.id}
+                  opportunity={toCardData(opp)}
+                  onClick={() => router.push(`/dashboard/${opp.id}`)}
+                />
+              ))}
+            </div>
+
+            {/* Pagination */}
+            <div className="flex items-center justify-between mt-6">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span>Show</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+                  className="border border-gray-300 rounded-md px-2 py-1 text-sm text-gray-700 bg-white"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
+                <span>per page</span>
+                <span className="text-gray-400 ml-2">
+                  {sorted.length} total
+                </span>
               </div>
-            ))}
-          </div>
+
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={safePage <= 1}
+                    className="px-3 py-1 text-sm rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Prev
+                  </button>
+                  <span className="px-3 py-1 text-sm text-gray-600">
+                    {safePage} / {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={safePage >= totalPages}
+                    className="px-3 py-1 text-sm rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
         )}
       </main>
     </div>

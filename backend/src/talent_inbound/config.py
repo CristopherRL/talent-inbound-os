@@ -27,6 +27,11 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     anthropic_api_key: str = ""
 
+    # LLM Model configuration
+    llm_provider: str = "anthropic"  # "anthropic" | "openai"
+    llm_fast_model: str = "claude-haiku-4-5-20251001"
+    llm_smart_model: str = "claude-sonnet-4-5-20250929"
+
     # LangSmith
     langchain_tracing_v2: bool = False
     langchain_api_key: str = ""

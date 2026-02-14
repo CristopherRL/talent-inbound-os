@@ -1,5 +1,6 @@
 """SQLAlchemy implementation of the OpportunityRepository."""
 
+from datetime import datetime
 from enum import StrEnum
 
 from sqlalchemy import select
@@ -12,12 +13,16 @@ def _enum_value(val) -> str | None:
         return None
     return val.value if isinstance(val, StrEnum) else str(val)
 
-from talent_inbound.modules.opportunities.domain.entities import Opportunity
+from talent_inbound.modules.opportunities.domain.entities import (
+    Opportunity,
+    StatusTransition,
+)
 from talent_inbound.modules.opportunities.domain.repositories import (
     OpportunityRepository,
 )
 from talent_inbound.modules.opportunities.infrastructure.orm_models import (
     OpportunityModel,
+    StatusTransitionModel,
 )
 
 
@@ -41,13 +46,23 @@ class SqlAlchemyOpportunityRepository(OpportunityRepository):
         return model.to_domain() if model else None
 
     async def list_by_candidate(
-        self, candidate_id: str, include_archived: bool = False
+        self,
+        candidate_id: str,
+        archived_filter: str | None = None,
+        status_filter: str | None = None,
     ) -> list[Opportunity]:
         stmt = select(OpportunityModel).where(
             OpportunityModel.candidate_id == candidate_id
         )
-        if not include_archived:
+        if archived_filter == "only":
+            stmt = stmt.where(OpportunityModel.is_archived == True)  # noqa: E712
+        elif archived_filter == "all":
+            pass  # no filter — show everything
+        else:
+            # Default: non-archived only
             stmt = stmt.where(OpportunityModel.is_archived == False)  # noqa: E712
+        if status_filter:
+            stmt = stmt.where(OpportunityModel.status == status_filter)
         stmt = stmt.order_by(OpportunityModel.created_at.desc())
         result = await self._session.execute(stmt)
         models = result.scalars().all()
@@ -80,3 +95,34 @@ class SqlAlchemyOpportunityRepository(OpportunityRepository):
         await self._session.flush()
         await self._session.refresh(model)
         return model.to_domain()
+
+    async def save_transition(self, transition: StatusTransition) -> StatusTransition:
+        model = StatusTransitionModel.from_domain(transition)
+        self._session.add(model)
+        await self._session.flush()
+        await self._session.refresh(model)
+        return model.to_domain()
+
+    async def list_transitions(self, opportunity_id: str) -> list[StatusTransition]:
+        stmt = (
+            select(StatusTransitionModel)
+            .where(StatusTransitionModel.opportunity_id == opportunity_id)
+            .order_by(StatusTransitionModel.created_at.asc())
+        )
+        result = await self._session.execute(stmt)
+        models = result.scalars().all()
+        return [m.to_domain() for m in models]
+
+    async def list_stale(
+        self, candidate_id: str, before: datetime
+    ) -> list[Opportunity]:
+        stmt = (
+            select(OpportunityModel)
+            .where(OpportunityModel.candidate_id == candidate_id)
+            .where(OpportunityModel.is_archived == False)  # noqa: E712
+            .where(OpportunityModel.last_interaction_at < before)
+        )
+        stmt = stmt.order_by(OpportunityModel.last_interaction_at.asc())
+        result = await self._session.execute(stmt)
+        models = result.scalars().all()
+        return [m.to_domain() for m in models]

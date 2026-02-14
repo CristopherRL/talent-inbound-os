@@ -12,6 +12,7 @@ from talent_inbound.modules.opportunities.domain.entities import (
     Opportunity,
     StatusTransition,
 )
+from talent_inbound.shared.domain.enums import ResponseType
 from talent_inbound.shared.infrastructure.database import Base
 
 
@@ -187,3 +188,34 @@ class StatusTransitionModel(Base):
             created_at=transition.created_at,
             updated_at=transition.updated_at,
         )
+
+
+class DraftResponseModel(Base):
+    """draft_responses table — AI-generated response drafts for opportunities."""
+
+    __tablename__ = "draft_responses"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    opportunity_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("opportunities.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    response_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    generated_content: Mapped[str] = mapped_column(Text, nullable=False)
+    edited_content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_final: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )

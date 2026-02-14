@@ -2,6 +2,11 @@
 
 FAST tier: cheap and fast models for classification/pattern matching.
 SMART tier: powerful models for extraction/reasoning/generation.
+
+Model names and provider are configured via .env / Settings:
+  LLM_PROVIDER=anthropic          # "anthropic" | "openai"
+  LLM_FAST_MODEL=claude-haiku-4-5-20251001
+  LLM_SMART_MODEL=claude-sonnet-4-5-20250929
 """
 
 from enum import StrEnum
@@ -27,17 +32,24 @@ AGENT_TIERS: dict[str, ModelTier] = {
 class ModelRouter:
     """Routes agents to the appropriate LLM model by tier.
 
-    Supports OpenAI and Anthropic providers. Falls back gracefully
-    when API keys are not configured (returns None → agents use mock).
+    Supports OpenAI and Anthropic providers. The provider and model names
+    are read from Settings (config.py / .env) so you can switch without
+    touching code.
     """
 
     def __init__(
         self,
         openai_api_key: str = "",
         anthropic_api_key: str = "",
+        provider: str = "anthropic",
+        fast_model: str = "claude-haiku-4-5-20251001",
+        smart_model: str = "claude-sonnet-4-5-20250929",
     ) -> None:
         self._openai_key = openai_api_key
         self._anthropic_key = anthropic_api_key
+        self._provider = provider.lower()
+        self._fast_model = fast_model
+        self._smart_model = smart_model
         self._models: dict[ModelTier, BaseChatModel | None] = {
             ModelTier.FAST: None,
             ModelTier.SMART: None,
@@ -45,35 +57,35 @@ class ModelRouter:
         self._init_models()
 
     def _init_models(self) -> None:
-        """Initialize LLM clients based on available API keys."""
-        if self._openai_key:
+        """Initialize LLM clients based on the configured provider."""
+        if self._provider == "openai" and self._openai_key:
             try:
                 from langchain_openai import ChatOpenAI
 
                 self._models[ModelTier.FAST] = ChatOpenAI(
-                    model="gpt-4o-mini",
+                    model=self._fast_model,
                     api_key=self._openai_key,
                     temperature=0,
                 )
                 self._models[ModelTier.SMART] = ChatOpenAI(
-                    model="gpt-4o",
+                    model=self._smart_model,
                     api_key=self._openai_key,
                     temperature=0,
                 )
             except ImportError:
                 pass
 
-        if self._anthropic_key:
+        elif self._provider == "anthropic" and self._anthropic_key:
             try:
                 from langchain_anthropic import ChatAnthropic
 
                 self._models[ModelTier.FAST] = ChatAnthropic(
-                    model="claude-haiku-4-5-20251001",
+                    model=self._fast_model,
                     api_key=self._anthropic_key,
                     temperature=0,
                 )
                 self._models[ModelTier.SMART] = ChatAnthropic(
-                    model="claude-sonnet-4-5-20250929",
+                    model=self._smart_model,
                     api_key=self._anthropic_key,
                     temperature=0,
                 )

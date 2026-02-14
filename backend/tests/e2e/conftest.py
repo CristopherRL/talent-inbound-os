@@ -113,8 +113,8 @@ async def client():
     async with factory() as session:
         await session.execute(
             text(
-                "TRUNCATE interactions, opportunities, status_transitions, "
-                "candidate_profiles, users CASCADE"
+                "TRUNCATE draft_responses, interactions, opportunities, "
+                "status_transitions, candidate_profiles, users CASCADE"
             )
         )
         await session.commit()

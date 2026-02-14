@@ -71,18 +71,28 @@ class Opportunity(AggregateRoot):
         return transition
 
     def _is_unusual_transition(self, new_status: OpportunityStatus) -> bool:
-        """Check if the transition is unusual (skip, backward, or from terminal)."""
+        """Check if the transition is unusual (skip, backward, or from terminal).
+
+        Rules:
+        - Moving FROM a terminal status is always unusual.
+        - Within STANDARD_FLOW: backward or skipping >1 stage is unusual.
+        - Going to OFFER without reaching INTERVIEWING first is unusual
+          (skipping stages toward a positive outcome).
+        """
         if self.status in TERMINAL_STATUSES:
             return True
 
         if self.status in STANDARD_FLOW and new_status in STANDARD_FLOW:
             from_idx = STANDARD_FLOW.index(self.status)
             to_idx = STANDARD_FLOW.index(new_status)
-            # Backward movement
             if to_idx < from_idx:
                 return True
-            # Skipping more than one stage
             if to_idx - from_idx > 1:
+                return True
+
+        # OFFER should follow INTERVIEWING — skipping to it is unusual
+        if new_status == OpportunityStatus.OFFER and self.status in STANDARD_FLOW:
+            if self.status != OpportunityStatus.INTERVIEWING:
                 return True
 
         return False
