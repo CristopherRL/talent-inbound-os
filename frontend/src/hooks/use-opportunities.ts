@@ -1,6 +1,6 @@
 "use client";
 
-import { apiGet, apiPost, apiPatch } from "@/lib/api";
+import { apiGet, apiPost, apiPut, apiPatch, ApiError } from "@/lib/api";
 
 export interface OpportunityListItem {
   id: string;
@@ -126,4 +126,51 @@ export async function unarchiveOpportunity(
   opportunityId: string,
 ): Promise<{ id: string; is_archived: boolean; message: string }> {
   return apiPost(`/opportunities/${opportunityId}/unarchive`);
+}
+
+export interface DraftResponse {
+  id: string;
+  response_type: string;
+  generated_content: string;
+  edited_content: string | null;
+  is_final: boolean;
+  created_at: string;
+}
+
+export async function generateDraft(
+  opportunityId: string,
+  responseType: string,
+  additionalContext?: string,
+): Promise<DraftResponse> {
+  const body: { response_type: string; additional_context?: string } = {
+    response_type: responseType,
+  };
+  if (additionalContext) body.additional_context = additionalContext;
+  return apiPost<DraftResponse>(`/opportunities/${opportunityId}/drafts`, body);
+}
+
+export async function editDraft(
+  opportunityId: string,
+  draftId: string,
+  editedContent: string,
+  isFinal: boolean,
+): Promise<DraftResponse> {
+  return apiPut<DraftResponse>(`/opportunities/${opportunityId}/drafts/${draftId}`, {
+    edited_content: editedContent,
+    is_final: isFinal,
+  });
+}
+
+export async function deleteDraft(
+  opportunityId: string,
+  draftId: string,
+): Promise<void> {
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"}/api/v1/opportunities/${opportunityId}/drafts/${draftId}`,
+    { method: "DELETE", credentials: "include" },
+  );
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({ detail: response.statusText }));
+    throw new ApiError(response.status, body.detail || response.statusText);
+  }
 }

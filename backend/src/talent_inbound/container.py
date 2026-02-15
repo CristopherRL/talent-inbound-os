@@ -19,6 +19,10 @@ from talent_inbound.modules.opportunities.application.archive import (
     UnarchiveOpportunity,
 )
 from talent_inbound.modules.opportunities.application.change_status import ChangeStatus
+from talent_inbound.modules.opportunities.application.edit_draft import EditDraft
+from talent_inbound.modules.opportunities.application.generate_draft import (
+    GenerateDraft,
+)
 from talent_inbound.modules.opportunities.application.get_stale import (
     GetStaleOpportunities,
 )
@@ -178,6 +182,8 @@ class Container(containers.DeclarativeContainer):
         profile_repo=profile_repo,
     )
 
+    edit_draft_uc = providers.Factory(EditDraft)
+
     # --- Pipeline module ---
     model_router = providers.Singleton(
         ModelRouter,
@@ -189,3 +195,11 @@ class Container(containers.DeclarativeContainer):
     )
 
     sse_emitter = providers.Singleton(SSEEmitter)
+
+    # GenerateDraft uses model_router to stay consistent with the pipeline mode
+    generate_draft_uc = providers.Factory(
+        GenerateDraft,
+        opportunity_repo=opportunity_repo,
+        profile_repo=profile_repo,
+        model_router=model_router,
+    )

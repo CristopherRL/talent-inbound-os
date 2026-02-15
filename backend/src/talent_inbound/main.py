@@ -86,6 +86,9 @@ def create_app() -> FastAPI:
         status = "ok" if db_status == "ok" else "degraded"
         return {"status": status, "database": db_status}
 
+    # Log startup configuration
+    _log_startup_banner(settings, container)
+
     # DB session per request (commit on success, rollback on error).
     # Wraps the entire FastAPI ASGI app as the outermost middleware so
     # every HTTP request gets its own AsyncSession via ContextVar.
@@ -93,6 +96,23 @@ def create_app() -> FastAPI:
     wrapped = DBSessionMiddleware(app, session_factory=session_factory)
 
     return wrapped  # type: ignore[return-value]
+
+
+def _log_startup_banner(settings, container) -> None:
+    """Log application configuration at startup for observability."""
+    model_router = container.model_router()
+    llm_configured = model_router.is_configured
+    mode = "LLM" if llm_configured else "MOCK"
+
+    logger.info(
+        "app_startup",
+        mode=mode,
+        llm_provider=settings.llm_provider if llm_configured else "none",
+        llm_fast_model=settings.llm_fast_model if llm_configured else "n/a",
+        llm_smart_model=settings.llm_smart_model if llm_configured else "n/a",
+        environment=settings.environment,
+        pipeline_steps=settings.pipeline_steps,
+    )
 
 
 app = create_app()

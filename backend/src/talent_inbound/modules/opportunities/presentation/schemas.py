@@ -84,6 +84,16 @@ class OpportunityDetailResponse(BaseModel):
 # --- Requests ---
 
 
+class GenerateDraftRequest(BaseModel):
+    response_type: str  # REQUEST_INFO | EXPRESS_INTEREST | DECLINE
+    additional_context: str | None = None  # Optional user instructions for the draft
+
+
+class EditDraftRequest(BaseModel):
+    edited_content: str | None = None
+    is_final: bool | None = None
+
+
 class ChangeStatusRequest(BaseModel):
     new_status: str
     note: str | None = None

@@ -27,11 +27,17 @@ from talent_inbound.modules.opportunities.domain.exceptions import (
 from talent_inbound.modules.opportunities.domain.repositories import (
     OpportunityRepository,
 )
+from talent_inbound.modules.opportunities.application.edit_draft import EditDraft
+from talent_inbound.modules.opportunities.application.generate_draft import (
+    GenerateDraft,
+)
 from talent_inbound.modules.opportunities.presentation.schemas import (
     ArchiveResponse,
     ChangeStatusRequest,
     ChangeStatusResponse,
     DraftResponseItem,
+    EditDraftRequest,
+    GenerateDraftRequest,
     InteractionSummary,
     OpportunityDetailResponse,
     OpportunityListItem,
@@ -305,3 +311,108 @@ async def unarchive_opportunity(
 
     await unarchive_uc.execute(opportunity_id)
     return ArchiveResponse(id=opportunity_id, is_archived=False, message="Opportunity unarchived")
+
+
+@router.post(
+    "/{opportunity_id}/drafts",
+    response_model=DraftResponseItem,
+    status_code=201,
+)
+@inject
+async def generate_draft(
+    opportunity_id: str,
+    body: GenerateDraftRequest,
+    current_user: User = Depends(get_current_user),
+    generate_draft_uc: GenerateDraft = Depends(
+        Provide[Container.generate_draft_uc]
+    ),
+    opportunity_repo: OpportunityRepository = Depends(
+        Provide[Container.opportunity_repo]
+    ),
+) -> DraftResponseItem:
+    # Verify ownership
+    opp = await opportunity_repo.find_by_id(opportunity_id)
+    if opp is None or opp.candidate_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+
+    try:
+        result = await generate_draft_uc.execute(
+            opportunity_id=opportunity_id,
+            response_type=body.response_type,
+            additional_context=body.additional_context,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return DraftResponseItem(**result)
+
+
+@router.put(
+    "/{opportunity_id}/drafts/{draft_id}",
+    response_model=DraftResponseItem,
+)
+@inject
+async def edit_draft(
+    opportunity_id: str,
+    draft_id: str,
+    body: EditDraftRequest,
+    current_user: User = Depends(get_current_user),
+    edit_draft_uc: EditDraft = Depends(
+        Provide[Container.edit_draft_uc]
+    ),
+    opportunity_repo: OpportunityRepository = Depends(
+        Provide[Container.opportunity_repo]
+    ),
+) -> DraftResponseItem:
+    # Verify ownership
+    opp = await opportunity_repo.find_by_id(opportunity_id)
+    if opp is None or opp.candidate_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+
+    try:
+        result = await edit_draft_uc.execute(
+            opportunity_id=opportunity_id,
+            draft_id=draft_id,
+            edited_content=body.edited_content,
+            is_final=body.is_final,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return DraftResponseItem(**result)
+
+
+@router.delete(
+    "/{opportunity_id}/drafts/{draft_id}",
+    status_code=204,
+)
+@inject
+async def delete_draft(
+    opportunity_id: str,
+    draft_id: str,
+    current_user: User = Depends(get_current_user),
+    opportunity_repo: OpportunityRepository = Depends(
+        Provide[Container.opportunity_repo]
+    ),
+) -> None:
+    opp = await opportunity_repo.find_by_id(opportunity_id)
+    if opp is None or opp.candidate_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+
+    from talent_inbound.modules.opportunities.infrastructure.orm_models import (
+        DraftResponseModel,
+    )
+    from talent_inbound.shared.infrastructure.database import get_current_session
+
+    session = get_current_session()
+    stmt = select(DraftResponseModel).where(
+        DraftResponseModel.id == draft_id,
+        DraftResponseModel.opportunity_id == opportunity_id,
+    )
+    result = await session.execute(stmt)
+    draft_model = result.scalar_one_or_none()
+    if draft_model is None:
+        raise HTTPException(status_code=404, detail="Draft not found")
+
+    await session.delete(draft_model)
+    await session.flush()

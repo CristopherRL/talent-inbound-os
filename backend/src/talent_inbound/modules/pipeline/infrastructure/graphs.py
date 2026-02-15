@@ -1,8 +1,8 @@
 """LangGraph StateGraph definitions for the processing pipeline.
 
 Main pipeline: guardrail → gatekeeper → (conditional: spam→END, offer→extractor)
-              → extractor → (conditional: missing fields→END, complete→analyst) → END
-Communicator is a stub — implemented in US7.
+              → extractor → (conditional: missing fields→END, complete→analyst)
+              → analyst → communicator → END
 """
 
 from typing import Literal
@@ -12,6 +12,9 @@ from langgraph.graph import END, START, StateGraph
 from talent_inbound.modules.pipeline.domain.state import PipelineState
 from talent_inbound.modules.pipeline.infrastructure.agents.analyst import (
     create_analyst_node,
+)
+from talent_inbound.modules.pipeline.infrastructure.agents.communicator import (
+    create_communicator_node,
 )
 from talent_inbound.modules.pipeline.infrastructure.agents.extractor import (
     create_extractor_node,
@@ -60,6 +63,7 @@ def build_main_pipeline(
     gatekeeper_model = model_router.get_model("gatekeeper") if model_router else None
     extractor_model = model_router.get_model("extractor") if model_router else None
     analyst_model = model_router.get_model("analyst") if model_router else None
+    communicator_model = model_router.get_model("communicator") if model_router else None
 
     graph = StateGraph(PipelineState)
 
@@ -73,6 +77,13 @@ def build_main_pipeline(
             model=analyst_model,
             profile_repo=profile_repo,
             scoring_weights=scoring_weights,
+        ),
+    )
+    graph.add_node(
+        "communicator",
+        create_communicator_node(
+            model=communicator_model,
+            profile_repo=profile_repo,
         ),
     )
 
@@ -89,6 +100,7 @@ def build_main_pipeline(
         _route_after_extractor,
         {"analyst": "analyst", "__end__": END},
     )
-    graph.add_edge("analyst", END)
+    graph.add_edge("analyst", "communicator")
+    graph.add_edge("communicator", END)
 
     return graph.compile()

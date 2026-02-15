@@ -12,6 +12,7 @@ from talent_inbound.modules.pipeline.infrastructure.sse import SSEEmitter
 from talent_inbound.shared.domain.enums import (
     Classification,
     OpportunityStatus,
+    ResponseType,
     TransitionTrigger,
 )
 
@@ -93,6 +94,7 @@ class ProcessPipeline:
                     final_status = self._determine_status(result)
                     self._apply_extracted_data(opportunity, result)
                     self._apply_scoring(opportunity, result)
+                    await self._save_draft(opportunity_id, result)
                     opportunity.change_status(
                         final_status,
                         triggered_by=TransitionTrigger.SYSTEM,
@@ -173,3 +175,23 @@ class ProcessPipeline:
             opportunity.match_score = result["match_score"]
         if result.get("match_reasoning"):
             opportunity.match_reasoning = result["match_reasoning"]
+
+    async def _save_draft(self, opportunity_id: str, result: dict) -> None:
+        """Save the auto-generated draft response from the Communicator."""
+        draft_text = result.get("draft_response")
+        if not draft_text:
+            return
+
+        from talent_inbound.modules.opportunities.infrastructure.orm_models import (
+            DraftResponseModel,
+        )
+        from talent_inbound.shared.infrastructure.database import get_current_session
+
+        session = get_current_session()
+        model = DraftResponseModel(
+            opportunity_id=opportunity_id,
+            response_type=ResponseType.EXPRESS_INTEREST.value,
+            generated_content=draft_text,
+        )
+        session.add(model)
+        await session.flush()

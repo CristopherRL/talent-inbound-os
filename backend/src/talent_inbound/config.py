@@ -1,8 +1,12 @@
 """Application configuration using pydantic-settings."""
 
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Resolve paths relative to the backend directory, not the CWD
+_BACKEND_DIR = Path(__file__).resolve().parents[2]  # src/talent_inbound -> src -> backend
 
 
 class Settings(BaseSettings):
@@ -40,13 +44,13 @@ class Settings(BaseSettings):
     # Application
     log_level: str = "INFO"
     environment: str = "development"
-    upload_dir: str = "./uploads"
+    upload_dir: str = str(_BACKEND_DIR / "uploads")
 
     # Ingestion
     max_message_length: int = 50000
 
     # Pipeline steps (ordered agent sequence for the main pipeline)
-    pipeline_steps: list[str] = ["guardrail", "gatekeeper", "extractor", "analyst"]
+    pipeline_steps: list[str] = ["guardrail", "gatekeeper", "extractor", "analyst", "communicator"]
 
     # Scoring weights (Analyst agent)
     scoring_base: int = 50

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import DraftResponseCard from "@/components/opportunity/DraftResponseCard";
 import MatchScoreCard from "@/components/opportunity/MatchScoreCard";
 import StatusBadge from "@/components/opportunity/StatusBadge";
 import Timeline, { type TimelineEvent } from "@/components/opportunity/Timeline";
@@ -10,6 +11,9 @@ import {
   changeStatus,
   archiveOpportunity,
   unarchiveOpportunity,
+  generateDraft,
+  editDraft,
+  deleteDraft,
   type OpportunityDetail,
 } from "@/hooks/use-opportunities";
 
@@ -90,6 +94,9 @@ export default function OpportunityDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [statusLoading, setStatusLoading] = useState(false);
   const [confirmUnusual, setConfirmUnusual] = useState<string | null>(null);
+  const [draftType, setDraftType] = useState("EXPRESS_INTEREST");
+  const [additionalContext, setAdditionalContext] = useState("");
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     fetchOpportunityDetail(id)
@@ -136,6 +143,40 @@ export default function OpportunityDetailPage() {
       setOpp(updated);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Unarchive failed");
+    }
+  }
+
+  async function handleGenerateDraft() {
+    setGenerating(true);
+    try {
+      await generateDraft(id, draftType, additionalContext || undefined);
+      const updated = await fetchOpportunityDetail(id);
+      setOpp(updated);
+      setAdditionalContext("");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Draft generation failed");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function handleSaveDraft(draftId: string, editedContent: string, isFinal: boolean) {
+    try {
+      await editDraft(id, draftId, editedContent, isFinal);
+      const updated = await fetchOpportunityDetail(id);
+      setOpp(updated);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Draft save failed");
+    }
+  }
+
+  async function handleDeleteDraft(draftId: string) {
+    try {
+      await deleteDraft(id, draftId);
+      const updated = await fetchOpportunityDetail(id);
+      setOpp(updated);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Draft delete failed");
     }
   }
 
@@ -367,31 +408,54 @@ export default function OpportunityDetailPage() {
           <Timeline events={timeline} />
         </div>
 
-        {/* Draft responses placeholder */}
+        {/* Draft responses */}
         <div className="bg-white rounded-lg border p-4">
-          <h2 className="text-sm font-medium text-gray-900 mb-2">
+          <h2 className="text-sm font-medium text-gray-900 mb-3">
             Draft Responses
           </h2>
+
+          {/* Generate new draft */}
+          <div className="space-y-2 mb-4">
+            <div className="flex items-center gap-2">
+              <select
+                value={draftType}
+                onChange={(e) => setDraftType(e.target.value)}
+                className="text-sm border border-gray-300 rounded-md px-2 py-1.5 text-gray-700 bg-white"
+              >
+                <option value="EXPRESS_INTEREST">Express Interest</option>
+                <option value="REQUEST_INFO">Request Info</option>
+                <option value="DECLINE">Decline</option>
+              </select>
+              <button
+                onClick={handleGenerateDraft}
+                disabled={generating}
+                className="text-sm px-4 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {generating ? "Generating..." : "Generate Draft"}
+              </button>
+            </div>
+            <textarea
+              value={additionalContext}
+              onChange={(e) => setAdditionalContext(e.target.value)}
+              placeholder="Additional instructions (optional) — e.g. 'mencionar que tengo disponibilidad inmediata' or 'ask about equity package'"
+              rows={2}
+              className="w-full text-sm text-gray-900 placeholder:text-gray-400 border border-gray-300 rounded-md px-2 py-1.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
           {opp.draft_responses.length === 0 ? (
             <p className="text-sm text-gray-500">
-              No draft responses yet. Response generation will be available in a future update.
+              No drafts yet. Select a response type above and click "Generate Draft".
             </p>
           ) : (
             <div className="space-y-3">
               {opp.draft_responses.map((d) => (
-                <div key={d.id} className="border rounded p-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-medium text-gray-700">
-                      {d.response_type.replace("_", " ")}
-                    </span>
-                    {d.is_final && (
-                      <span className="text-xs text-green-600">Final</span>
-                    )}
-                  </div>
-                  <p className="text-sm text-gray-600 whitespace-pre-wrap">
-                    {d.edited_content || d.generated_content}
-                  </p>
-                </div>
+                <DraftResponseCard
+                  key={d.id}
+                  draft={d}
+                  onSave={handleSaveDraft}
+                  onDelete={handleDeleteDraft}
+                />
               ))}
             </div>
           )}
