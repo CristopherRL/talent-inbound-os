@@ -49,5 +49,7 @@ class EditDraft:
             "generated_content": draft.generated_content,
             "edited_content": draft.edited_content,
             "is_final": draft.is_final,
+            "is_sent": draft.is_sent,
+            "sent_at": draft.sent_at,
             "created_at": draft.created_at,
         }

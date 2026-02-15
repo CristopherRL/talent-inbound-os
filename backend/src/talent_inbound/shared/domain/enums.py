@@ -40,6 +40,7 @@ class InteractionSource(StrEnum):
 class InteractionType(StrEnum):
     INITIAL = "INITIAL"
     FOLLOW_UP = "FOLLOW_UP"
+    CANDIDATE_RESPONSE = "CANDIDATE_RESPONSE"
 
 
 class ProcessingStatus(StrEnum):

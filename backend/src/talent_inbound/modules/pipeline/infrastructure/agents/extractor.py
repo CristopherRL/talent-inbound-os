@@ -109,8 +109,27 @@ def _mock_extract(text: str) -> ExtractedData:
     return extracted
 
 
+def _parse_llm_json(raw: str) -> dict | None:
+    """Try to parse JSON from LLM output, stripping markdown fences if present."""
+    text = raw.strip()
+    if not text:
+        return None
+    if text.startswith("```"):
+        first_nl = text.index("\n") if "\n" in text else 3
+        text = text[first_nl + 1 :]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
+    try:
+        return json.loads(text)
+    except (json.JSONDecodeError, ValueError):
+        return None
+
+
 async def _llm_extract(model: BaseChatModel, text: str) -> ExtractedData:
     """Use LLM to extract structured data."""
+    import structlog
+
     system_prompt = load_prompt("extractor")
     messages = [
         SystemMessage(content=system_prompt),
@@ -118,11 +137,20 @@ async def _llm_extract(model: BaseChatModel, text: str) -> ExtractedData:
     ]
     response = await model.ainvoke(messages)
     content = response.content
+    # Handle list-type content blocks (Anthropic API)
+    if isinstance(content, list):
+        text_parts = [b["text"] for b in content if isinstance(b, dict) and b.get("type") == "text"]
+        content = " ".join(text_parts) if text_parts else ""
     if isinstance(content, str):
-        parsed = json.loads(content)
-        missing = [f for f in _CRITICAL_FIELDS if not parsed.get(f)]
-        parsed["missing_fields"] = missing
-        return ExtractedData(**parsed)
+        parsed = _parse_llm_json(content)
+        if parsed:
+            missing = [f for f in _CRITICAL_FIELDS if not parsed.get(f)]
+            parsed["missing_fields"] = missing
+            return ExtractedData(**parsed)
+        structlog.get_logger().warning(
+            "extractor_llm_json_parse_failed",
+            content_preview=str(content)[:200],
+        )
     return _mock_extract(text)
 
 

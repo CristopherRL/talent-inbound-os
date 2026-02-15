@@ -104,3 +104,52 @@ def build_main_pipeline(
     graph.add_edge("communicator", END)
 
     return graph.compile()
+
+
+def build_followup_pipeline(
+    model_router: ModelRouter | None = None,
+    profile_repo=None,
+    scoring_weights: dict | None = None,
+) -> StateGraph:
+    """Build the follow-up pipeline — same as main but skips Gatekeeper.
+
+    We already know this is a real offer (it was classified during initial ingestion),
+    so we go straight from guardrail → extractor → analyst → communicator.
+    """
+    extractor_model = model_router.get_model("extractor") if model_router else None
+    analyst_model = model_router.get_model("analyst") if model_router else None
+    communicator_model = model_router.get_model("communicator") if model_router else None
+
+    graph = StateGraph(PipelineState)
+
+    # Nodes — no gatekeeper
+    graph.add_node("guardrail", guardrail_node)
+    graph.add_node("extractor", create_extractor_node(extractor_model))
+    graph.add_node(
+        "analyst",
+        create_analyst_node(
+            model=analyst_model,
+            profile_repo=profile_repo,
+            scoring_weights=scoring_weights,
+        ),
+    )
+    graph.add_node(
+        "communicator",
+        create_communicator_node(
+            model=communicator_model,
+            profile_repo=profile_repo,
+        ),
+    )
+
+    # Edges: guardrail → extractor → (conditional) → analyst → communicator → END
+    graph.add_edge(START, "guardrail")
+    graph.add_edge("guardrail", "extractor")
+    graph.add_conditional_edges(
+        "extractor",
+        _route_after_extractor,
+        {"analyst": "analyst", "__end__": END},
+    )
+    graph.add_edge("analyst", "communicator")
+    graph.add_edge("communicator", END)
+
+    return graph.compile()

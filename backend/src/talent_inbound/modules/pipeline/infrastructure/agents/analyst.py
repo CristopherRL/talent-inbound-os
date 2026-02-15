@@ -130,8 +130,27 @@ def _mock_score(profile, extracted_data: dict, weights: dict) -> dict:
     }
 
 
-async def _llm_score(model: BaseChatModel, profile, extracted_data: dict) -> dict:
+def _parse_llm_json(raw: str) -> dict | None:
+    """Try to parse JSON from LLM output, stripping markdown fences if present."""
+    text = raw.strip()
+    if not text:
+        return None
+    if text.startswith("```"):
+        first_nl = text.index("\n") if "\n" in text else 3
+        text = text[first_nl + 1 :]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
+    try:
+        return json.loads(text)
+    except (json.JSONDecodeError, ValueError):
+        return None
+
+
+async def _llm_score(model: BaseChatModel, profile, extracted_data: dict, weights: dict) -> dict:
     """Use LLM to score the opportunity against the profile."""
+    import structlog
+
     prompt_template = load_prompt("analyst")
     prompt = prompt_template.format(
         profile_context=_build_profile_context(profile),
@@ -143,16 +162,25 @@ async def _llm_score(model: BaseChatModel, profile, extracted_data: dict) -> dic
     ]
     response = await model.ainvoke(messages)
     content = response.content
+    # Handle list-type content blocks (Anthropic API)
+    if isinstance(content, list):
+        text_parts = [b["text"] for b in content if isinstance(b, dict) and b.get("type") == "text"]
+        content = " ".join(text_parts) if text_parts else ""
     if isinstance(content, str):
-        parsed = json.loads(content)
-        return {
-            "score": max(0, min(100, int(parsed.get("score", 50)))),
-            "reasoning": parsed.get("reasoning", ""),
-            "skill_matches": parsed.get("skill_matches", []),
-            "missing_skills": parsed.get("missing_skills", []),
-            "salary_delta": parsed.get("salary_delta", "not specified"),
-        }
-    return _mock_score(profile, extracted_data)
+        parsed = _parse_llm_json(content)
+        if parsed:
+            return {
+                "score": max(0, min(100, int(parsed.get("score", 50)))),
+                "reasoning": parsed.get("reasoning", ""),
+                "skill_matches": parsed.get("skill_matches", []),
+                "missing_skills": parsed.get("missing_skills", []),
+                "salary_delta": parsed.get("salary_delta", "not specified"),
+            }
+        structlog.get_logger().warning(
+            "analyst_llm_json_parse_failed",
+            content_preview=str(content)[:200],
+        )
+    return _mock_score(profile, extracted_data, weights)
 
 
 def _default_weights() -> dict:
@@ -217,7 +245,7 @@ def create_analyst_node(
 
         # Score
         if model is not None and profile:
-            result = await _llm_score(model, profile, extracted)
+            result = await _llm_score(model, profile, extracted, weights)
             source = "llm"
         else:
             result = _mock_score(profile, extracted, weights)

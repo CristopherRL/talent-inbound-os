@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 
 from dependency_injector.wiring import Provide, inject
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,8 +18,14 @@ from talent_inbound.modules.opportunities.application.change_status import (
     ChangeStatus,
     ChangeStatusCommand,
 )
+from talent_inbound.modules.opportunities.application.confirm_draft_sent import (
+    ConfirmDraftSent,
+)
 from talent_inbound.modules.opportunities.application.get_stale import (
     GetStaleOpportunities,
+)
+from talent_inbound.modules.opportunities.application.submit_followup import (
+    SubmitFollowUp,
 )
 from talent_inbound.modules.opportunities.domain.exceptions import (
     OpportunityNotFoundError,
@@ -35,6 +41,7 @@ from talent_inbound.modules.opportunities.presentation.schemas import (
     ArchiveResponse,
     ChangeStatusRequest,
     ChangeStatusResponse,
+    ConfirmSentResponse,
     DraftResponseItem,
     EditDraftRequest,
     GenerateDraftRequest,
@@ -43,6 +50,8 @@ from talent_inbound.modules.opportunities.presentation.schemas import (
     OpportunityListItem,
     StaleOpportunityItem,
     StatusTransitionItem,
+    SubmitFollowUpRequest,
+    SubmitFollowUpResponse,
 )
 from talent_inbound.shared.domain.enums import TransitionTrigger
 
@@ -192,6 +201,8 @@ async def get_opportunity_detail(
             generated_content=d.generated_content,
             edited_content=d.edited_content,
             is_final=d.is_final,
+            is_sent=d.is_sent,
+            sent_at=d.sent_at,
             created_at=d.created_at,
         )
         for d in draft_models
@@ -416,3 +427,106 @@ async def delete_draft(
 
     await session.delete(draft_model)
     await session.flush()
+
+
+@router.post(
+    "/{opportunity_id}/drafts/{draft_id}/confirm-sent",
+    response_model=ConfirmSentResponse,
+)
+@inject
+async def confirm_draft_sent(
+    opportunity_id: str,
+    draft_id: str,
+    current_user: User = Depends(get_current_user),
+    confirm_sent_uc: ConfirmDraftSent = Depends(
+        Provide[Container.confirm_sent_uc]
+    ),
+    opportunity_repo: OpportunityRepository = Depends(
+        Provide[Container.opportunity_repo]
+    ),
+) -> ConfirmSentResponse:
+    opp = await opportunity_repo.find_by_id(opportunity_id)
+    if opp is None or opp.candidate_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+
+    try:
+        result = await confirm_sent_uc.execute(
+            opportunity_id=opportunity_id,
+            draft_id=draft_id,
+            candidate_id=current_user.id,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return ConfirmSentResponse(**result)
+
+
+@router.post(
+    "/{opportunity_id}/followup",
+    response_model=SubmitFollowUpResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+@inject
+async def submit_followup(
+    opportunity_id: str,
+    body: SubmitFollowUpRequest,
+    current_user: User = Depends(get_current_user),
+    submit_followup_uc: SubmitFollowUp = Depends(
+        Provide[Container.submit_followup_uc]
+    ),
+    opportunity_repo: OpportunityRepository = Depends(
+        Provide[Container.opportunity_repo]
+    ),
+    interaction_repo=Depends(Provide[Container.interaction_repo]),
+    model_router=Depends(Provide[Container.model_router]),
+    sse_emitter=Depends(Provide[Container.sse_emitter]),
+) -> SubmitFollowUpResponse:
+    try:
+        result = await submit_followup_uc.execute(
+            opportunity_id=opportunity_id,
+            candidate_id=current_user.id,
+            raw_content=body.raw_content,
+            source=body.source,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # Run follow-up pipeline inline
+    import structlog
+    from talent_inbound.container import Container as C
+    from talent_inbound.modules.pipeline.application.process_pipeline import (
+        ProcessPipeline,
+    )
+    from talent_inbound.modules.pipeline.infrastructure.graphs import (
+        build_followup_pipeline,
+    )
+
+    logger = structlog.get_logger()
+    try:
+        from talent_inbound.config import get_settings as _gs
+
+        _settings = _gs()
+        scoring_weights = {
+            "base": _settings.scoring_base,
+            "skills": _settings.scoring_skills_weight,
+            "wm_match": _settings.scoring_work_model_match,
+            "wm_mismatch": _settings.scoring_work_model_mismatch,
+            "sal_meets": _settings.scoring_salary_meets_min,
+            "sal_below": _settings.scoring_salary_below_min,
+        }
+        opp_repo = C.opportunity_repo()
+        profile_repo = C.profile_repo()
+        graph = build_followup_pipeline(
+            model_router, profile_repo=profile_repo, scoring_weights=scoring_weights
+        )
+        pipeline_uc = ProcessPipeline(
+            interaction_repo=interaction_repo,
+            opportunity_repo=opp_repo,
+            pipeline_graph=graph,
+            sse_emitter=sse_emitter,
+        )
+        await pipeline_uc.execute(result["interaction_id"])
+    except Exception:
+        logger.exception("followup_pipeline_failed")
+
+    return SubmitFollowUpResponse(**result)

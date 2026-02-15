@@ -52,6 +52,8 @@ class DraftResponseItem(BaseModel):
     generated_content: str
     edited_content: str | None
     is_final: bool
+    is_sent: bool = False
+    sent_at: datetime | None = None
     created_at: datetime
 
 
@@ -122,3 +124,18 @@ class StaleOpportunityItem(BaseModel):
     status: str
     last_interaction_at: datetime | None
     days_since_interaction: int | None
+
+
+class ConfirmSentResponse(BaseModel):
+    draft_id: str
+    interaction_id: str
+
+
+class SubmitFollowUpRequest(BaseModel):
+    raw_content: str
+    source: str  # LINKEDIN | EMAIL | FREELANCE_PLATFORM | OTHER
+
+
+class SubmitFollowUpResponse(BaseModel):
+    interaction_id: str
+    opportunity_id: str

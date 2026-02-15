@@ -14,10 +14,10 @@ Evaluate these dimensions:
 5. Industry alignment: Does the opportunity align with the candidate's preferred industries?
 
 Return ONLY a JSON object:
-{
+{{
   "score": 0-100,
   "reasoning": "2-3 sentence explanation of the score",
   "skill_matches": ["matched skills"],
   "missing_skills": ["required skills the candidate lacks"],
   "salary_delta": "description of salary comparison (e.g. '+20K above minimum', 'below minimum', 'not specified')"
-}
+}}

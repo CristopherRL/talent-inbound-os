@@ -55,6 +55,8 @@ export interface OpportunityDetail {
     generated_content: string;
     edited_content: string | null;
     is_final: boolean;
+    is_sent: boolean;
+    sent_at: string | null;
     created_at: string;
   }[];
   created_at: string;
@@ -134,6 +136,8 @@ export interface DraftResponse {
   generated_content: string;
   edited_content: string | null;
   is_final: boolean;
+  is_sent: boolean;
+  sent_at: string | null;
   created_at: string;
 }
 
@@ -173,4 +177,22 @@ export async function deleteDraft(
     const body = await response.json().catch(() => ({ detail: response.statusText }));
     throw new ApiError(response.status, body.detail || response.statusText);
   }
+}
+
+export async function confirmDraftSent(
+  opportunityId: string,
+  draftId: string,
+): Promise<{ draft_id: string; interaction_id: string }> {
+  return apiPost(`/opportunities/${opportunityId}/drafts/${draftId}/confirm-sent`);
+}
+
+export async function submitFollowUp(
+  opportunityId: string,
+  rawContent: string,
+  source: string,
+): Promise<{ interaction_id: string; opportunity_id: string }> {
+  return apiPost(`/opportunities/${opportunityId}/followup`, {
+    raw_content: rawContent,
+    source,
+  });
 }

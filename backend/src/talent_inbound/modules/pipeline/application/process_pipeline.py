@@ -11,6 +11,7 @@ from talent_inbound.modules.pipeline.domain.state import PipelineState
 from talent_inbound.modules.pipeline.infrastructure.sse import SSEEmitter
 from talent_inbound.shared.domain.enums import (
     Classification,
+    InteractionType,
     OpportunityStatus,
     ResponseType,
     TransitionTrigger,
@@ -54,9 +55,14 @@ class ProcessPipeline:
         # Emit SSE: pipeline started
         await self._sse.emit_progress(interaction_id, "pipeline", "started")
 
+        # For follow-ups, build combined text from all recruiter messages
+        raw_input = interaction.raw_content
+        if interaction.interaction_type == InteractionType.FOLLOW_UP.value and opportunity_id:
+            raw_input = await self._build_combined_text(opportunity_id)
+
         # Build initial state
         initial_state: PipelineState = {
-            "raw_input": interaction.raw_content,
+            "raw_input": raw_input,
             "interaction_id": interaction_id,
             "opportunity_id": opportunity_id,
             "candidate_id": interaction.candidate_id,
@@ -122,8 +128,22 @@ class ProcessPipeline:
             log.exception("pipeline_failed")
             interaction.mark_failed()
             await self._interaction_repo.update(interaction)
+
+            # Update opportunity status so it doesn't stay stuck in ANALYZING
+            if opportunity_id:
+                opportunity = await self._opportunity_repo.find_by_id(
+                    opportunity_id
+                )
+                if opportunity:
+                    opportunity.change_status(
+                        OpportunityStatus.ACTION_REQUIRED,
+                        triggered_by=TransitionTrigger.SYSTEM,
+                        note="Pipeline failed — manual review needed",
+                    )
+                    await self._opportunity_repo.update(opportunity)
+
             await self._sse.emit_complete(
-                interaction_id, opportunity_id, "ANALYZING"
+                interaction_id, opportunity_id, "ACTION_REQUIRED"
             )
 
     def _determine_status(self, result: dict) -> OpportunityStatus:
@@ -195,3 +215,39 @@ class ProcessPipeline:
         )
         session.add(model)
         await session.flush()
+
+    async def _build_combined_text(self, opportunity_id: str) -> str:
+        """Build combined text from all recruiter messages (INITIAL + FOLLOW_UP)
+        for the opportunity. Excludes CANDIDATE_RESPONSE interactions."""
+        from sqlalchemy import select
+
+        from talent_inbound.modules.ingestion.infrastructure.orm_models import (
+            InteractionModel,
+        )
+        from talent_inbound.shared.infrastructure.database import get_current_session
+
+        session = get_current_session()
+        stmt = (
+            select(InteractionModel)
+            .where(
+                InteractionModel.opportunity_id == opportunity_id,
+                InteractionModel.interaction_type.in_([
+                    InteractionType.INITIAL.value,
+                    InteractionType.FOLLOW_UP.value,
+                ]),
+            )
+            .order_by(InteractionModel.created_at.asc())
+        )
+        result = await session.execute(stmt)
+        interactions = result.scalars().all()
+
+        parts: list[str] = []
+        followup_num = 0
+        for i in interactions:
+            if i.interaction_type == InteractionType.INITIAL.value:
+                parts.append(f"--- Initial message ---\n{i.raw_content}")
+            else:
+                followup_num += 1
+                parts.append(f"--- Follow-up #{followup_num} ---\n{i.raw_content}")
+
+        return "\n\n".join(parts)

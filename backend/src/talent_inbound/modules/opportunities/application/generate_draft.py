@@ -140,5 +140,7 @@ class GenerateDraft:
             "generated_content": draft_model.generated_content,
             "edited_content": draft_model.edited_content,
             "is_final": draft_model.is_final,
+            "is_sent": draft_model.is_sent,
+            "sent_at": draft_model.sent_at,
             "created_at": draft_model.created_at,
         }

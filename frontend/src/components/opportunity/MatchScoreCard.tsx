@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   SCORING_THRESHOLD_HIGH,
   SCORING_THRESHOLD_MEDIUM,
@@ -36,8 +37,8 @@ function ScoreRing({ score }: { score: number }) {
   const offset = circumference - (score / 100) * circumference;
 
   return (
-    <div className="relative w-24 h-24 flex-shrink-0">
-      <svg className="w-24 h-24 -rotate-90" viewBox="0 0 80 80">
+    <div className="relative w-20 h-20 flex-shrink-0">
+      <svg className="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
         <circle
           cx="40"
           cy="40"
@@ -60,7 +61,7 @@ function ScoreRing({ score }: { score: number }) {
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-xl font-bold text-gray-900">{score}</span>
+        <span className="text-lg font-bold text-gray-900">{score}</span>
         <span className="text-[10px] text-gray-500">/100</span>
       </div>
     </div>
@@ -71,6 +72,8 @@ export default function MatchScoreCard({
   score,
   reasoning,
 }: MatchScoreCardProps) {
+  const [expanded, setExpanded] = useState(false);
+
   if (score === null) {
     return (
       <div className="rounded-lg border border-gray-200 bg-white p-4">
@@ -86,15 +89,29 @@ export default function MatchScoreCard({
   return (
     <div className={`rounded-lg border p-4 ${scoreColor(score)}`}>
       <h3 className="text-sm font-medium text-gray-900 mb-3">Match Score</h3>
-      <div className="flex items-start gap-4">
+      <div className="flex items-center gap-3 mb-2">
         <ScoreRing score={score} />
-        <div className="flex-1 min-w-0">
-          <span className="text-sm font-semibold">{scoreLabel(score)}</span>
-          {reasoning && (
-            <p className="mt-1 text-sm text-gray-700">{reasoning}</p>
+        <span className="text-sm font-semibold">{scoreLabel(score)}</span>
+      </div>
+      {reasoning && (
+        <div className="mt-2 border-t border-current/10 pt-2">
+          <p
+            className={`text-xs text-gray-700 leading-relaxed ${
+              !expanded ? "line-clamp-3" : ""
+            }`}
+          >
+            {reasoning}
+          </p>
+          {reasoning.length > 150 && (
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="text-xs text-blue-600 hover:text-blue-700 mt-1"
+            >
+              {expanded ? "Show less" : "Show more"}
+            </button>
           )}
         </div>
-      </div>
+      )}
     </div>
   );
 }

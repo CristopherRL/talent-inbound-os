@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime, timezone
 from enum import StrEnum
 
+import sqlalchemy as sa
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
@@ -208,6 +209,12 @@ class DraftResponseModel(Base):
     generated_content: Mapped[str] = mapped_column(Text, nullable=False)
     edited_content: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_final: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_sent: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=sa.text("false")
+    )
+    sent_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

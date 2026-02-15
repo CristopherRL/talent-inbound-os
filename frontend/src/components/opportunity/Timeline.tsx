@@ -28,18 +28,31 @@ function InteractionEvent({ event }: { event: TimelineEvent }) {
   const LINE_THRESHOLD = 120; // approximate chars for ~3 lines
   const isLong = (event.raw_content?.length ?? 0) > LINE_THRESHOLD;
 
+  const isCandidateResponse = event.interaction_type === "CANDIDATE_RESPONSE";
+  const dotColor = isCandidateResponse ? "bg-green-500" : "bg-blue-500";
+  const labelColor = isCandidateResponse ? "text-green-600" : "text-blue-600";
+
+  let label = "Initial message";
+  if (isCandidateResponse) {
+    label = "Your response (sent)";
+  } else if (event.interaction_type === "FOLLOW_UP") {
+    label = "Follow-up";
+  }
+
   return (
     <div className="flex gap-3">
       <div className="flex flex-col items-center">
-        <div className="w-2.5 h-2.5 rounded-full bg-blue-500 mt-1.5" />
+        <div className={`w-2.5 h-2.5 rounded-full ${dotColor} mt-1.5`} />
         <div className="w-px flex-1 bg-gray-200" />
       </div>
       <div className="pb-4 flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-blue-600">
-            {event.interaction_type === "FOLLOW_UP" ? "Follow-up" : "Initial message"}
+          <span className={`text-xs font-medium ${labelColor}`}>
+            {label}
           </span>
-          <span className="text-xs text-gray-400">via {event.source}</span>
+          {!isCandidateResponse && (
+            <span className="text-xs text-gray-400">via {event.source}</span>
+          )}
           <span className="text-xs text-gray-400">
             {new Date(event.timestamp).toLocaleString()}
           </span>

@@ -19,12 +19,18 @@ from talent_inbound.modules.opportunities.application.archive import (
     UnarchiveOpportunity,
 )
 from talent_inbound.modules.opportunities.application.change_status import ChangeStatus
+from talent_inbound.modules.opportunities.application.confirm_draft_sent import (
+    ConfirmDraftSent,
+)
 from talent_inbound.modules.opportunities.application.edit_draft import EditDraft
 from talent_inbound.modules.opportunities.application.generate_draft import (
     GenerateDraft,
 )
 from talent_inbound.modules.opportunities.application.get_stale import (
     GetStaleOpportunities,
+)
+from talent_inbound.modules.opportunities.application.submit_followup import (
+    SubmitFollowUp,
 )
 from talent_inbound.modules.pipeline.infrastructure.model_router import ModelRouter
 from talent_inbound.modules.pipeline.infrastructure.sse import SSEEmitter
@@ -183,6 +189,10 @@ class Container(containers.DeclarativeContainer):
     )
 
     edit_draft_uc = providers.Factory(EditDraft)
+
+    confirm_sent_uc = providers.Factory(ConfirmDraftSent)
+
+    submit_followup_uc = providers.Factory(SubmitFollowUp)
 
     # --- Pipeline module ---
     model_router = providers.Singleton(

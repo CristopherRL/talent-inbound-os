@@ -41,6 +41,23 @@ def _mock_classify(text: str) -> tuple[str, float]:
     return "NOT_AN_OFFER", 0.7
 
 
+def _extract_json(text: str) -> dict | None:
+    """Try to extract a JSON object from LLM output, handling markdown fences."""
+    text = text.strip()
+    # Strip markdown code fences if present
+    if text.startswith("```"):
+        # Remove opening fence (with optional language tag)
+        first_newline = text.index("\n") if "\n" in text else 3
+        text = text[first_newline + 1 :]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
+    try:
+        return json.loads(text)
+    except (json.JSONDecodeError, ValueError):
+        return None
+
+
 async def _llm_classify(
     model: BaseChatModel, text: str
 ) -> tuple[str, float]:
@@ -53,8 +70,16 @@ async def _llm_classify(
     response = await model.ainvoke(messages)
     content = response.content
     if isinstance(content, str):
-        parsed = json.loads(content)
-        return parsed["classification"], parsed.get("confidence", 0.8)
+        parsed = _extract_json(content)
+        if parsed and "classification" in parsed:
+            return parsed["classification"], parsed.get("confidence", 0.8)
+        # Fallback: if LLM returned text but not valid JSON, use mock classifier
+        import structlog
+        structlog.get_logger().warning(
+            "gatekeeper_llm_json_parse_failed",
+            content_preview=content[:200],
+        )
+        return _mock_classify(text)
     return "REAL_OFFER", 0.5
 
 

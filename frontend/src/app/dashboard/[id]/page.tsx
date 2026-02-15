@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import DraftResponseCard from "@/components/opportunity/DraftResponseCard";
+import FollowUpForm from "@/components/opportunity/FollowUpForm";
 import MatchScoreCard from "@/components/opportunity/MatchScoreCard";
 import StatusBadge from "@/components/opportunity/StatusBadge";
 import Timeline, { type TimelineEvent } from "@/components/opportunity/Timeline";
@@ -14,6 +15,8 @@ import {
   generateDraft,
   editDraft,
   deleteDraft,
+  confirmDraftSent,
+  submitFollowUp,
   type OpportunityDetail,
 } from "@/hooks/use-opportunities";
 
@@ -40,6 +43,53 @@ const STATUS_DESCRIPTIONS: Record<string, string> = {
   REJECTED: "You've decided to pass",
   GHOSTED: "No response from recruiter",
 };
+
+type CycleState = "processing" | "terminal" | "awaiting_followup" | "drafting";
+
+function deriveCycleState(opp: OpportunityDetail): CycleState {
+  if (opp.status === "ANALYZING") return "processing";
+  if (TERMINAL_STATUSES.has(opp.status) || opp.is_archived) return "terminal";
+
+  // Check if latest interaction is a CANDIDATE_RESPONSE → awaiting follow-up
+  const interactions = [...opp.interactions].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  if (interactions.length > 0 && interactions[0].interaction_type === "CANDIDATE_RESPONSE") {
+    return "awaiting_followup";
+  }
+
+  return "drafting";
+}
+
+function getCurrentRoundDrafts(opp: OpportunityDetail) {
+  // Find the last CANDIDATE_RESPONSE interaction
+  const interactions = [...opp.interactions].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  const lastSent = interactions.find((i) => i.interaction_type === "CANDIDATE_RESPONSE");
+
+  if (!lastSent) {
+    // No sent responses yet — all drafts are current
+    return opp.draft_responses;
+  }
+
+  // Only show drafts created AFTER the last CANDIDATE_RESPONSE
+  const lastSentTime = new Date(lastSent.created_at).getTime();
+  return opp.draft_responses.filter(
+    (d) => new Date(d.created_at).getTime() > lastSentTime
+  );
+}
+
+function getDefaultSource(opp: OpportunityDetail): string {
+  // Use the source from the original/latest recruiter interaction
+  const recruiterInteractions = opp.interactions.filter(
+    (i) => i.interaction_type !== "CANDIDATE_RESPONSE"
+  );
+  if (recruiterInteractions.length > 0) {
+    return recruiterInteractions[recruiterInteractions.length - 1].source;
+  }
+  return "LINKEDIN";
+}
 
 function StatusHelpTooltip() {
   const [open, setOpen] = useState(false);
@@ -105,6 +155,12 @@ export default function OpportunityDetailPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  async function refreshDetail() {
+    const updated = await fetchOpportunityDetail(id);
+    setOpp(updated);
+    return updated;
+  }
+
   async function handleStatusChange(newStatus: string) {
     if (!opp) return;
     setStatusLoading(true);
@@ -115,9 +171,7 @@ export default function OpportunityDetailPage() {
         setStatusLoading(false);
         return;
       }
-      // Reload detail
-      const updated = await fetchOpportunityDetail(id);
-      setOpp(updated);
+      await refreshDetail();
       setConfirmUnusual(null);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Status change failed");
@@ -129,8 +183,7 @@ export default function OpportunityDetailPage() {
   async function handleArchive() {
     try {
       await archiveOpportunity(id);
-      const updated = await fetchOpportunityDetail(id);
-      setOpp(updated);
+      await refreshDetail();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Archive failed");
     }
@@ -139,8 +192,7 @@ export default function OpportunityDetailPage() {
   async function handleUnarchive() {
     try {
       await unarchiveOpportunity(id);
-      const updated = await fetchOpportunityDetail(id);
-      setOpp(updated);
+      await refreshDetail();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Unarchive failed");
     }
@@ -150,8 +202,7 @@ export default function OpportunityDetailPage() {
     setGenerating(true);
     try {
       await generateDraft(id, draftType, additionalContext || undefined);
-      const updated = await fetchOpportunityDetail(id);
-      setOpp(updated);
+      await refreshDetail();
       setAdditionalContext("");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Draft generation failed");
@@ -163,8 +214,7 @@ export default function OpportunityDetailPage() {
   async function handleSaveDraft(draftId: string, editedContent: string, isFinal: boolean) {
     try {
       await editDraft(id, draftId, editedContent, isFinal);
-      const updated = await fetchOpportunityDetail(id);
-      setOpp(updated);
+      await refreshDetail();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Draft save failed");
     }
@@ -173,11 +223,24 @@ export default function OpportunityDetailPage() {
   async function handleDeleteDraft(draftId: string) {
     try {
       await deleteDraft(id, draftId);
-      const updated = await fetchOpportunityDetail(id);
-      setOpp(updated);
+      await refreshDetail();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Draft delete failed");
     }
+  }
+
+  async function handleConfirmSent(draftId: string) {
+    try {
+      await confirmDraftSent(id, draftId);
+      await refreshDetail();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Confirm sent failed");
+    }
+  }
+
+  async function handleSubmitFollowUp(rawContent: string, source: string) {
+    await submitFollowUp(id, rawContent, source);
+    await refreshDetail();
   }
 
   function buildTimeline(): TimelineEvent[] {
@@ -238,6 +301,8 @@ export default function OpportunityDetailPage() {
   }
 
   const timeline = buildTimeline();
+  const cycleState = deriveCycleState(opp);
+  const currentDrafts = getCurrentRoundDrafts(opp);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -408,58 +473,119 @@ export default function OpportunityDetailPage() {
           <Timeline events={timeline} />
         </div>
 
-        {/* Draft responses */}
-        <div className="bg-white rounded-lg border p-4">
-          <h2 className="text-sm font-medium text-gray-900 mb-3">
-            Draft Responses
-          </h2>
-
-          {/* Generate new draft */}
-          <div className="space-y-2 mb-4">
-            <div className="flex items-center gap-2">
-              <select
-                value={draftType}
-                onChange={(e) => setDraftType(e.target.value)}
-                className="text-sm border border-gray-300 rounded-md px-2 py-1.5 text-gray-700 bg-white"
-              >
-                <option value="EXPRESS_INTEREST">Express Interest</option>
-                <option value="REQUEST_INFO">Request Info</option>
-                <option value="DECLINE">Decline</option>
-              </select>
+        {/* Cycle-state-dependent section */}
+        {cycleState === "processing" && (
+          <div className="bg-white rounded-lg border p-4">
+            <div className="flex items-center gap-3">
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
+              <div>
+                <h2 className="text-sm font-medium text-gray-900">Processing...</h2>
+                <p className="text-xs text-gray-500">
+                  The AI pipeline is analyzing this opportunity. Refresh to see updates.
+                </p>
+              </div>
               <button
-                onClick={handleGenerateDraft}
-                disabled={generating}
-                className="text-sm px-4 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                onClick={refreshDetail}
+                className="ml-auto text-xs px-3 py-1.5 rounded border border-gray-300 text-gray-600 hover:bg-gray-50"
               >
-                {generating ? "Generating..." : "Generate Draft"}
+                Refresh
               </button>
             </div>
-            <textarea
-              value={additionalContext}
-              onChange={(e) => setAdditionalContext(e.target.value)}
-              placeholder="Additional instructions (optional) — e.g. 'mencionar que tengo disponibilidad inmediata' or 'ask about equity package'"
-              rows={2}
-              className="w-full text-sm text-gray-900 placeholder:text-gray-400 border border-gray-300 rounded-md px-2 py-1.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          </div>
+        )}
+
+        {cycleState === "terminal" && (
+          <div className="bg-white rounded-lg border p-4">
+            <h2 className="text-sm font-medium text-gray-900 mb-2">Opportunity Closed</h2>
+            <p className="text-sm text-gray-500">
+              This opportunity is in a terminal status ({opp.status.replace("_", " ")}).
+              {opp.is_archived ? " It has been archived." : " You can archive it from the Actions section above."}
+            </p>
+            {/* Still show all drafts (read-only) */}
+            {opp.draft_responses.length > 0 && (
+              <div className="mt-4 space-y-3">
+                <h3 className="text-xs font-medium text-gray-500">Previous Drafts</h3>
+                {opp.draft_responses.map((d) => (
+                  <DraftResponseCard
+                    key={d.id}
+                    draft={d}
+                    onSave={handleSaveDraft}
+                    onDelete={handleDeleteDraft}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {cycleState === "awaiting_followup" && (
+          <div className="bg-white rounded-lg border p-4">
+            <h2 className="text-sm font-medium text-gray-900 mb-2">Awaiting Recruiter Reply</h2>
+            <p className="text-xs text-gray-500 mb-4">
+              You&apos;ve sent your response. When the recruiter replies, paste their message below
+              to trigger a new analysis cycle.
+            </p>
+            <FollowUpForm
+              defaultSource={getDefaultSource(opp)}
+              onSubmit={handleSubmitFollowUp}
             />
           </div>
+        )}
 
-          {opp.draft_responses.length === 0 ? (
-            <p className="text-sm text-gray-500">
-              No drafts yet. Select a response type above and click "Generate Draft".
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {opp.draft_responses.map((d) => (
-                <DraftResponseCard
-                  key={d.id}
-                  draft={d}
-                  onSave={handleSaveDraft}
-                  onDelete={handleDeleteDraft}
-                />
-              ))}
+        {cycleState === "drafting" && (
+          <div className="bg-white rounded-lg border p-4">
+            <h2 className="text-sm font-medium text-gray-900 mb-3">
+              Draft Responses
+            </h2>
+
+            {/* Generate new draft */}
+            <div className="space-y-2 mb-4">
+              <div className="flex items-center gap-2">
+                <select
+                  value={draftType}
+                  onChange={(e) => setDraftType(e.target.value)}
+                  className="text-sm border border-gray-300 rounded-md px-2 py-1.5 text-gray-700 bg-white"
+                >
+                  <option value="EXPRESS_INTEREST">Express Interest</option>
+                  <option value="REQUEST_INFO">Request Info</option>
+                  <option value="DECLINE">Decline</option>
+                </select>
+                <button
+                  onClick={handleGenerateDraft}
+                  disabled={generating}
+                  className="text-sm px-4 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {generating ? "Generating..." : "Generate Draft"}
+                </button>
+              </div>
+              <textarea
+                value={additionalContext}
+                onChange={(e) => setAdditionalContext(e.target.value)}
+                placeholder="Additional instructions (optional) — e.g. 'mencionar que tengo disponibilidad inmediata' or 'ask about equity package'"
+                rows={2}
+                className="w-full text-sm text-gray-900 placeholder:text-gray-400 border border-gray-300 rounded-md px-2 py-1.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
             </div>
-          )}
-        </div>
+
+            {currentDrafts.length === 0 ? (
+              <p className="text-sm text-gray-500">
+                No drafts yet. Select a response type above and click &quot;Generate Draft&quot;.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {currentDrafts.map((d) => (
+                  <DraftResponseCard
+                    key={d.id}
+                    draft={d}
+                    onSave={handleSaveDraft}
+                    onDelete={handleDeleteDraft}
+                    onConfirmSent={handleConfirmSent}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
