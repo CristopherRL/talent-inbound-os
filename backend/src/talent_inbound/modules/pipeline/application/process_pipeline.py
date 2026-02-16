@@ -12,7 +12,7 @@ from talent_inbound.modules.pipeline.infrastructure.sse import SSEEmitter
 from talent_inbound.shared.domain.enums import (
     Classification,
     InteractionType,
-    OpportunityStatus,
+    OpportunityStage,
     ResponseType,
     TransitionTrigger,
 )
@@ -93,34 +93,35 @@ class ProcessPipeline:
             interaction.pipeline_log = result.get("pipeline_log", [])
             await self._interaction_repo.update(interaction)
 
-            # Update opportunity with extracted data and status
+            # Update opportunity with extracted data and stage
             if opportunity_id:
                 opportunity = await self._opportunity_repo.find_by_id(opportunity_id)
                 if opportunity:
-                    final_status = self._determine_status(result)
+                    final_stage = self._determine_stage(result)
                     self._apply_extracted_data(opportunity, result)
                     self._apply_scoring(opportunity, result)
+                    self._apply_stage_suggestion(opportunity, result)
                     await self._save_draft(opportunity_id, result)
-                    opportunity.change_status(
-                        final_status,
+                    opportunity.change_stage(
+                        final_stage,
                         triggered_by=TransitionTrigger.SYSTEM,
                         note=f"Pipeline completed: {classification_str}",
                     )
                     await self._opportunity_repo.update(opportunity)
 
                     await self._sse.emit_complete(
-                        interaction_id, opportunity_id, final_status.value
+                        interaction_id, opportunity_id, final_stage.value
                     )
                     log.info(
                         "pipeline_completed",
                         classification=classification_str,
-                        final_status=final_status.value,
+                        final_stage=final_stage.value,
                     )
                     return
 
             # No opportunity to update — just emit complete
             await self._sse.emit_complete(
-                interaction_id, opportunity_id, "ANALYZING"
+                interaction_id, opportunity_id, "DISCOVERY"
             )
             log.info("pipeline_completed", classification=classification_str)
 
@@ -129,39 +130,34 @@ class ProcessPipeline:
             interaction.mark_failed()
             await self._interaction_repo.update(interaction)
 
-            # Update opportunity status so it doesn't stay stuck in ANALYZING
+            # Update opportunity stage so it doesn't stay stuck
             if opportunity_id:
                 opportunity = await self._opportunity_repo.find_by_id(
                     opportunity_id
                 )
                 if opportunity:
-                    opportunity.change_status(
-                        OpportunityStatus.ACTION_REQUIRED,
+                    opportunity.change_stage(
+                        OpportunityStage.DISCOVERY,
                         triggered_by=TransitionTrigger.SYSTEM,
                         note="Pipeline failed — manual review needed",
                     )
                     await self._opportunity_repo.update(opportunity)
 
             await self._sse.emit_complete(
-                interaction_id, opportunity_id, "ACTION_REQUIRED"
+                interaction_id, opportunity_id, "DISCOVERY"
             )
 
-    def _determine_status(self, result: dict) -> OpportunityStatus:
-        """Determine the opportunity status based on pipeline results."""
+    def _determine_stage(self, result: dict) -> OpportunityStage:
+        """Determine the opportunity stage based on pipeline results."""
         classification = result.get("classification", "")
 
         if classification == "SPAM":
-            return OpportunityStatus.REJECTED
+            return OpportunityStage.REJECTED
         if classification == "NOT_AN_OFFER":
-            return OpportunityStatus.REJECTED
+            return OpportunityStage.REJECTED
 
-        # Real offer — check for missing fields
-        extracted = result.get("extracted_data", {})
-        missing = extracted.get("missing_fields", [])
-        if missing:
-            return OpportunityStatus.ACTION_REQUIRED
-
-        return OpportunityStatus.ACTION_REQUIRED
+        # Real offer → DISCOVERY (user evaluates from there)
+        return OpportunityStage.DISCOVERY
 
     def _apply_extracted_data(self, opportunity: Opportunity, result: dict) -> None:
         """Apply extracted data fields to the opportunity."""
@@ -195,6 +191,16 @@ class ProcessPipeline:
             opportunity.match_score = result["match_score"]
         if result.get("match_reasoning"):
             opportunity.match_reasoning = result["match_reasoning"]
+
+    def _apply_stage_suggestion(self, opportunity: Opportunity, result: dict) -> None:
+        """Apply stage suggestion from the Stage Detector."""
+        suggested = result.get("suggested_stage")
+        if suggested:
+            try:
+                opportunity.suggested_stage = OpportunityStage(suggested)
+                opportunity.suggested_stage_reason = result.get("suggested_stage_reason")
+            except ValueError:
+                pass  # Invalid stage value — ignore
 
     async def _save_draft(self, opportunity_id: str, result: dict) -> None:
         """Save the auto-generated draft response from the Communicator."""

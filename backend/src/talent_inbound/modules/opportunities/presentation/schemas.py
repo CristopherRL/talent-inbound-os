@@ -19,7 +19,7 @@ class OpportunityListItem(BaseModel):
     recruiter_type: str | None
     match_score: int | None
     missing_fields: list[str]
-    status: str
+    stage: str
     is_archived: bool
     created_at: datetime
     updated_at: datetime
@@ -36,10 +36,10 @@ class InteractionSummary(BaseModel):
     created_at: datetime
 
 
-class StatusTransitionItem(BaseModel):
+class StageTransitionItem(BaseModel):
     id: str
-    from_status: str
-    to_status: str
+    from_stage: str
+    to_stage: str
     triggered_by: str
     is_unusual: bool
     note: str | None
@@ -73,10 +73,12 @@ class OpportunityDetailResponse(BaseModel):
     match_score: int | None
     match_reasoning: str | None
     missing_fields: list[str]
-    status: str
+    stage: str
+    suggested_stage: str | None
+    suggested_stage_reason: str | None
     is_archived: bool
     interactions: list[InteractionSummary]
-    status_history: list[StatusTransitionItem]
+    stage_history: list[StageTransitionItem]
     draft_responses: list[DraftResponseItem]
     created_at: datetime
     updated_at: datetime
@@ -96,19 +98,19 @@ class EditDraftRequest(BaseModel):
     is_final: bool | None = None
 
 
-class ChangeStatusRequest(BaseModel):
-    new_status: str
+class ChangeStageRequest(BaseModel):
+    new_stage: str
     note: str | None = None
 
 
 # --- Responses ---
 
 
-class ChangeStatusResponse(BaseModel):
+class ChangeStageResponse(BaseModel):
     id: str
-    status: str
+    stage: str
     is_unusual: bool
-    transition: StatusTransitionItem
+    transition: StageTransitionItem
 
 
 class ArchiveResponse(BaseModel):
@@ -121,7 +123,7 @@ class StaleOpportunityItem(BaseModel):
     id: str
     company_name: str | None
     role_title: str | None
-    status: str
+    stage: str
     last_interaction_at: datetime | None
     days_since_interaction: int | None
 
@@ -139,3 +141,14 @@ class SubmitFollowUpRequest(BaseModel):
 class SubmitFollowUpResponse(BaseModel):
     interaction_id: str
     opportunity_id: str
+
+
+class AcceptStageSuggestionResponse(BaseModel):
+    id: str
+    stage: str
+    transition: StageTransitionItem | None
+
+
+class DismissStageSuggestionResponse(BaseModel):
+    id: str
+    suggested_stage: None = None

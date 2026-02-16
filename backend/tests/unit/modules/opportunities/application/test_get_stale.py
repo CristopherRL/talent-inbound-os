@@ -8,13 +8,13 @@ from talent_inbound.modules.opportunities.application.get_stale import (
 )
 from talent_inbound.modules.opportunities.domain.entities import Opportunity
 from talent_inbound.modules.profile.domain.entities import CandidateProfile
-from talent_inbound.shared.domain.enums import OpportunityStatus
+from talent_inbound.shared.domain.enums import OpportunityStage
 
 
 def _make_opp(days_ago: int, **overrides) -> Opportunity:
     defaults = {
         "candidate_id": "user-1",
-        "status": OpportunityStatus.ACTION_REQUIRED,
+        "stage": OpportunityStage.DISCOVERY,
         "last_interaction_at": datetime.now(timezone.utc) - timedelta(days=days_ago),
     }
     defaults.update(overrides)

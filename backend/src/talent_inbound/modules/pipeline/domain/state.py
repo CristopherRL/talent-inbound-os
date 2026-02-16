@@ -64,6 +64,10 @@ class PipelineState(TypedDict, total=False):
     # Communicator output (stub in US4, implemented in US7)
     draft_response: str | None
 
+    # Stage Detector output
+    suggested_stage: str | None
+    suggested_stage_reason: str | None
+
     # Metadata
     current_step: str
     pipeline_log: Annotated[list[StepLog], operator.add]

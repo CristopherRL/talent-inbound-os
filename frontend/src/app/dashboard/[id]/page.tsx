@@ -5,11 +5,16 @@ import { useParams, useRouter } from "next/navigation";
 import DraftResponseCard from "@/components/opportunity/DraftResponseCard";
 import FollowUpForm from "@/components/opportunity/FollowUpForm";
 import MatchScoreCard from "@/components/opportunity/MatchScoreCard";
-import StatusBadge from "@/components/opportunity/StatusBadge";
+import StageBadge from "@/components/opportunity/StageBadge";
+import StageProgressIndicator from "@/components/opportunity/StageProgressIndicator";
+import StageSuggestionBanner from "@/components/opportunity/StageSuggestionBanner";
+import StageSuggestionModal from "@/components/opportunity/StageSuggestionModal";
 import Timeline, { type TimelineEvent } from "@/components/opportunity/Timeline";
 import {
   fetchOpportunityDetail,
-  changeStatus,
+  changeStage,
+  acceptStageSuggestion,
+  dismissStageSuggestion,
   archiveOpportunity,
   unarchiveOpportunity,
   generateDraft,
@@ -20,25 +25,23 @@ import {
   type OpportunityDetail,
 } from "@/hooks/use-opportunities";
 
-const ALL_STATUSES = [
-  "NEW",
-  "ANALYZING",
-  "ACTION_REQUIRED",
-  "REVIEWING",
+const ALL_STAGES = [
+  "DISCOVERY",
+  "ENGAGING",
   "INTERVIEWING",
+  "NEGOTIATING",
   "OFFER",
   "REJECTED",
   "GHOSTED",
 ];
 
-const TERMINAL_STATUSES = new Set(["OFFER", "REJECTED", "GHOSTED"]);
+const TERMINAL_STAGES = new Set(["OFFER", "REJECTED", "GHOSTED"]);
 
-const STATUS_DESCRIPTIONS: Record<string, string> = {
-  NEW: "Just received, not yet processed",
-  ANALYZING: "Pipeline processing in progress",
-  ACTION_REQUIRED: "Needs your attention (data extracted)",
-  REVIEWING: "You're reviewing the opportunity details",
-  INTERVIEWING: "Interview process started",
+const STAGE_DESCRIPTIONS: Record<string, string> = {
+  DISCOVERY: "Pipeline analyzed, you're evaluating the opportunity",
+  ENGAGING: "Active conversation with the recruiter",
+  INTERVIEWING: "Formal interview process started",
+  NEGOTIATING: "Discussing terms and compensation",
   OFFER: "You've received a formal offer",
   REJECTED: "You've decided to pass",
   GHOSTED: "No response from recruiter",
@@ -47,8 +50,7 @@ const STATUS_DESCRIPTIONS: Record<string, string> = {
 type CycleState = "processing" | "terminal" | "awaiting_followup" | "drafting";
 
 function deriveCycleState(opp: OpportunityDetail): CycleState {
-  if (opp.status === "ANALYZING") return "processing";
-  if (TERMINAL_STATUSES.has(opp.status) || opp.is_archived) return "terminal";
+  if (TERMINAL_STAGES.has(opp.stage) || opp.is_archived) return "terminal";
 
   // Check if latest interaction is a CANDIDATE_RESPONSE → awaiting follow-up
   const interactions = [...opp.interactions].sort(
@@ -91,7 +93,7 @@ function getDefaultSource(opp: OpportunityDetail): string {
   return "LINKEDIN";
 }
 
-function StatusHelpTooltip() {
+function StageHelpTooltip() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -111,20 +113,20 @@ function StatusHelpTooltip() {
         type="button"
         onClick={() => setOpen(!open)}
         className="w-4 h-4 rounded-full bg-gray-200 text-gray-500 text-[10px] font-bold leading-none hover:bg-gray-300 inline-flex items-center justify-center"
-        title="Status descriptions"
+        title="Stage descriptions"
       >
         ?
       </button>
       {open && (
         <div className="absolute left-0 top-6 z-20 w-72 rounded-md border border-gray-200 bg-white shadow-lg p-3">
-          <p className="text-xs font-medium text-gray-700 mb-2">Status meanings:</p>
+          <p className="text-xs font-medium text-gray-700 mb-2">Stage meanings:</p>
           <dl className="space-y-1">
-            {ALL_STATUSES.map((s) => (
+            {ALL_STAGES.map((s) => (
               <div key={s} className="flex gap-2">
                 <dt className="text-xs font-medium text-gray-600 min-w-[110px]">
-                  {s.replace("_", " ")}
+                  {s}
                 </dt>
-                <dd className="text-xs text-gray-500">{STATUS_DESCRIPTIONS[s]}</dd>
+                <dd className="text-xs text-gray-500">{STAGE_DESCRIPTIONS[s]}</dd>
               </div>
             ))}
           </dl>
@@ -142,11 +144,14 @@ export default function OpportunityDetailPage() {
   const [opp, setOpp] = useState<OpportunityDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [statusLoading, setStatusLoading] = useState(false);
+  const [stageLoading, setStageLoading] = useState(false);
   const [confirmUnusual, setConfirmUnusual] = useState<string | null>(null);
   const [draftType, setDraftType] = useState("EXPRESS_INTEREST");
   const [additionalContext, setAdditionalContext] = useState("");
   const [generating, setGenerating] = useState(false);
+  const [suggestionModalOpen, setSuggestionModalOpen] = useState(false);
+  // Track the suggestion we already showed a modal for, so we don't re-pop on every refresh
+  const shownSuggestionRef = useRef<string | null>(null);
 
   useEffect(() => {
     fetchOpportunityDetail(id)
@@ -161,23 +166,57 @@ export default function OpportunityDetailPage() {
     return updated;
   }
 
-  async function handleStatusChange(newStatus: string) {
+  /**
+   * Refresh + show modal if a NEW suggestion appeared (one we haven't shown yet).
+   * Called after follow-up submission or any action that may trigger the pipeline.
+   */
+  async function refreshAndCheckSuggestion() {
+    const updated = await fetchOpportunityDetail(id);
+    setOpp(updated);
+    if (
+      updated.suggested_stage &&
+      updated.suggested_stage !== shownSuggestionRef.current
+    ) {
+      shownSuggestionRef.current = updated.suggested_stage;
+      setSuggestionModalOpen(true);
+    }
+    return updated;
+  }
+
+  async function handleStageChange(newStage: string) {
     if (!opp) return;
-    setStatusLoading(true);
+    setStageLoading(true);
     try {
-      const result = await changeStatus(id, newStatus);
+      const result = await changeStage(id, newStage);
       if (result.is_unusual && !confirmUnusual) {
-        setConfirmUnusual(newStatus);
-        setStatusLoading(false);
+        setConfirmUnusual(newStage);
+        setStageLoading(false);
         return;
       }
       await refreshDetail();
       setConfirmUnusual(null);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Status change failed");
+      setError(err instanceof Error ? err.message : "Stage change failed");
     } finally {
-      setStatusLoading(false);
+      setStageLoading(false);
     }
+  }
+
+  async function handleAcceptSuggestion() {
+    await acceptStageSuggestion(id);
+    setSuggestionModalOpen(false);
+    await refreshDetail();
+  }
+
+  async function handleDismissSuggestion() {
+    await dismissStageSuggestion(id);
+    setSuggestionModalOpen(false);
+    await refreshDetail();
+  }
+
+  function handleModalDismiss() {
+    // Close modal but keep the inline banner visible (don't call API dismiss)
+    setSuggestionModalOpen(false);
   }
 
   async function handleArchive() {
@@ -240,7 +279,7 @@ export default function OpportunityDetailPage() {
 
   async function handleSubmitFollowUp(rawContent: string, source: string) {
     await submitFollowUp(id, rawContent, source);
-    await refreshDetail();
+    await refreshAndCheckSuggestion();
   }
 
   function buildTimeline(): TimelineEvent[] {
@@ -258,13 +297,13 @@ export default function OpportunityDetailPage() {
       });
     }
 
-    for (const t of opp.status_history) {
+    for (const t of opp.stage_history) {
       events.push({
         id: t.id,
         type: "transition",
         timestamp: t.created_at,
-        from_status: t.from_status,
-        to_status: t.to_status,
+        from_stage: t.from_stage,
+        to_stage: t.to_stage,
         triggered_by: t.triggered_by,
         is_unusual: t.is_unusual,
         note: t.note ?? undefined,
@@ -315,7 +354,7 @@ export default function OpportunityDetailPage() {
           &larr; Back to Dashboard
         </button>
 
-        <div className="flex items-start justify-between mb-6">
+        <div className="flex items-start justify-between mb-4">
           <div>
             <h1 className="text-xl font-bold text-gray-900">
               {opp.company_name || "Unknown Company"}
@@ -325,7 +364,7 @@ export default function OpportunityDetailPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <StatusBadge status={opp.status} />
+            <StageBadge stage={opp.stage} />
             {opp.is_archived && (
               <span className="text-xs text-gray-400 border border-gray-300 rounded px-2 py-0.5">
                 Archived
@@ -333,6 +372,23 @@ export default function OpportunityDetailPage() {
             )}
           </div>
         </div>
+
+        {/* Stage Progress Indicator */}
+        <div className="mb-4">
+          <StageProgressIndicator currentStage={opp.stage} />
+        </div>
+
+        {/* Stage Suggestion Banner */}
+        {opp.suggested_stage && (
+          <div className="mb-4">
+            <StageSuggestionBanner
+              suggestedStage={opp.suggested_stage}
+              reason={opp.suggested_stage_reason}
+              onAccept={handleAcceptSuggestion}
+              onDismiss={handleDismissSuggestion}
+            />
+          </div>
+        )}
 
         {/* Grid: left = details, right = score */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
@@ -406,22 +462,22 @@ export default function OpportunityDetailPage() {
           </div>
         </div>
 
-        {/* Status change + archive */}
+        {/* Stage change + archive */}
         <div className="bg-white rounded-lg border p-4 mb-8">
           <h2 className="text-sm font-medium text-gray-900 mb-3">Actions</h2>
           <div className="flex items-center gap-3 flex-wrap">
             <label className="text-sm text-gray-600 flex items-center gap-1">
-              Change status: <StatusHelpTooltip />
+              Change stage: <StageHelpTooltip />
             </label>
             <select
-              disabled={statusLoading}
-              value={opp.status}
-              onChange={(e) => handleStatusChange(e.target.value)}
+              disabled={stageLoading}
+              value={opp.stage}
+              onChange={(e) => handleStageChange(e.target.value)}
               className="text-sm border border-gray-300 rounded-md px-2 py-1.5 text-gray-700 bg-white"
             >
-              {ALL_STATUSES.map((s) => (
+              {ALL_STAGES.map((s) => (
                 <option key={s} value={s}>
-                  {s.replace("_", " ")}
+                  {s}
                 </option>
               ))}
             </select>
@@ -433,7 +489,7 @@ export default function OpportunityDetailPage() {
                   Unusual transition detected.
                 </span>
                 <button
-                  onClick={() => handleStatusChange(confirmUnusual)}
+                  onClick={() => handleStageChange(confirmUnusual)}
                   className="text-yellow-700 underline"
                 >
                   Confirm
@@ -448,7 +504,7 @@ export default function OpportunityDetailPage() {
             )}
 
             {/* Archive/unarchive */}
-            {!opp.is_archived && TERMINAL_STATUSES.has(opp.status) && (
+            {!opp.is_archived && TERMINAL_STAGES.has(opp.stage) && (
               <button
                 onClick={handleArchive}
                 className="text-sm text-gray-600 hover:text-gray-900 px-3 py-1.5 rounded border border-gray-300"
@@ -474,31 +530,11 @@ export default function OpportunityDetailPage() {
         </div>
 
         {/* Cycle-state-dependent section */}
-        {cycleState === "processing" && (
-          <div className="bg-white rounded-lg border p-4">
-            <div className="flex items-center gap-3">
-              <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
-              <div>
-                <h2 className="text-sm font-medium text-gray-900">Processing...</h2>
-                <p className="text-xs text-gray-500">
-                  The AI pipeline is analyzing this opportunity. Refresh to see updates.
-                </p>
-              </div>
-              <button
-                onClick={refreshDetail}
-                className="ml-auto text-xs px-3 py-1.5 rounded border border-gray-300 text-gray-600 hover:bg-gray-50"
-              >
-                Refresh
-              </button>
-            </div>
-          </div>
-        )}
-
         {cycleState === "terminal" && (
           <div className="bg-white rounded-lg border p-4">
             <h2 className="text-sm font-medium text-gray-900 mb-2">Opportunity Closed</h2>
             <p className="text-sm text-gray-500">
-              This opportunity is in a terminal status ({opp.status.replace("_", " ")}).
+              This opportunity is in a terminal stage ({opp.stage}).
               {opp.is_archived ? " It has been archived." : " You can archive it from the Actions section above."}
             </p>
             {/* Still show all drafts (read-only) */}
@@ -587,6 +623,17 @@ export default function OpportunityDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Stage Suggestion Modal — pops up when a new suggestion arrives */}
+      {opp.suggested_stage && (
+        <StageSuggestionModal
+          open={suggestionModalOpen}
+          suggestedStage={opp.suggested_stage}
+          reason={opp.suggested_stage_reason}
+          onAccept={handleAcceptSuggestion}
+          onDismiss={handleModalDismiss}
+        />
+      )}
     </div>
   );
 }

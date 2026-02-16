@@ -19,12 +19,11 @@ import {
 
 type SortField = "date" | "score";
 
-const ALL_STATUSES = [
-  "NEW",
-  "ANALYZING",
-  "ACTION_REQUIRED",
-  "REVIEWING",
+const ALL_STAGES = [
+  "DISCOVERY",
+  "ENGAGING",
   "INTERVIEWING",
+  "NEGOTIATING",
   "OFFER",
   "REJECTED",
   "GHOSTED",
@@ -51,7 +50,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortField>("date");
-  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [stageFilter, setStageFilter] = useState<string>("");
   const [archivedFilter, setArchivedFilter] = useState<string>("");
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
@@ -64,8 +63,8 @@ export default function DashboardPage() {
   useEffect(() => {
     async function load() {
       try {
-        const params: { status?: string; archived?: string } = {};
-        if (statusFilter) params.status = statusFilter;
+        const params: { stage?: string; archived?: string } = {};
+        if (stageFilter) params.stage = stageFilter;
         if (archivedFilter) params.archived = archivedFilter;
 
         const [opps, stale] = await Promise.all([
@@ -84,7 +83,7 @@ export default function DashboardPage() {
       }
     }
     load();
-  }, [statusFilter, archivedFilter]);
+  }, [stageFilter, archivedFilter]);
 
   async function handleLogout() {
     try {
@@ -131,16 +130,16 @@ export default function DashboardPage() {
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-lg font-medium text-gray-900">Opportunities</h2>
           <div className="flex items-center gap-3">
-            {/* Status filter */}
+            {/* Stage filter */}
             <select
-              value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value); setLoading(true); }}
+              value={stageFilter}
+              onChange={(e) => { setStageFilter(e.target.value); setLoading(true); }}
               className="text-sm border border-gray-300 rounded-md px-2 py-1.5 text-gray-700 bg-white"
             >
-              <option value="">All Statuses</option>
-              {ALL_STATUSES.map((s) => (
+              <option value="">All Stages</option>
+              {ALL_STAGES.map((s) => (
                 <option key={s} value={s}>
-                  {s.replace("_", " ")}
+                  {s}
                 </option>
               ))}
             </select>

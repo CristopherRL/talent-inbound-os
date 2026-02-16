@@ -40,8 +40,8 @@ class TestIngestionFlowE2E:
         data = resp.json()
         assert "interaction_id" in data
         assert "opportunity_id" in data
-        # Pipeline runs inline: status is ACTION_REQUIRED after extraction
-        assert data["status"] in ("ANALYZING", "ACTION_REQUIRED", "REJECTED")
+        # Pipeline runs inline: stage is DISCOVERY or REJECTED after extraction
+        assert data["stage"] in ("DISCOVERY", "REJECTED")
 
     @pytest.mark.asyncio
     async def test_submit_message_unauthenticated_returns_401(
@@ -124,5 +124,5 @@ class TestIngestionFlowE2E:
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) >= 1
-        # Pipeline runs inline: status may be ACTION_REQUIRED, REJECTED, or ANALYZING
-        assert any(opp["status"] in ("ANALYZING", "ACTION_REQUIRED", "REJECTED") for opp in data)
+        # Pipeline runs inline: stage may be DISCOVERY or REJECTED
+        assert any(opp["stage"] in ("DISCOVERY", "REJECTED") for opp in data)

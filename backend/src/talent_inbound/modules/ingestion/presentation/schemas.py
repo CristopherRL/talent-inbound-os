@@ -19,7 +19,7 @@ class SubmitMessageResponse(BaseModel):
 
     interaction_id: str
     opportunity_id: str
-    status: str
+    stage: str
     message: str = "Pipeline processing started"
 
 

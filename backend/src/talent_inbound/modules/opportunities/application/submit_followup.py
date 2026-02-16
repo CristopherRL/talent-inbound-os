@@ -1,5 +1,5 @@
 """SubmitFollowUp use case — adds a recruiter follow-up message to an existing
-opportunity and transitions it back to ANALYZING for re-evaluation."""
+opportunity. No stage change — the pipeline's stage detector will suggest one."""
 
 import hashlib
 import uuid
@@ -11,20 +11,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from talent_inbound.modules.ingestion.infrastructure.orm_models import InteractionModel
 from talent_inbound.modules.opportunities.infrastructure.orm_models import (
     OpportunityModel,
-    StatusTransitionModel,
 )
 from talent_inbound.shared.domain.enums import (
     InteractionType,
-    OpportunityStatus,
+    OpportunityStage,
     ProcessingStatus,
-    TERMINAL_STATUSES,
-    TransitionTrigger,
+    TERMINAL_STAGES,
 )
 from talent_inbound.shared.infrastructure.database import get_current_session
 
 
 class SubmitFollowUp:
-    """Create a FOLLOW_UP interaction and transition the opportunity back to ANALYZING."""
+    """Create a FOLLOW_UP interaction for an existing opportunity."""
 
     async def execute(
         self,
@@ -49,10 +47,10 @@ class SubmitFollowUp:
         if opp.is_archived:
             raise ValueError("Cannot add follow-up to an archived opportunity")
 
-        current_status = OpportunityStatus(opp.status)
-        if current_status in TERMINAL_STATUSES:
+        current_stage = OpportunityStage(opp.stage)
+        if current_stage in TERMINAL_STAGES:
             raise ValueError(
-                f"Cannot add follow-up to an opportunity in terminal status: {opp.status}"
+                f"Cannot add follow-up to an opportunity in terminal stage: {opp.stage}"
             )
 
         now = datetime.now(timezone.utc)
@@ -76,23 +74,8 @@ class SubmitFollowUp:
         )
         session.add(interaction)
 
-        # Transition to ANALYZING
-        from_status = opp.status
-        opp.status = OpportunityStatus.ANALYZING.value
+        # Update last_interaction_at (no stage change — pipeline handles that)
         opp.last_interaction_at = now
-
-        transition = StatusTransitionModel(
-            id=str(uuid.uuid4()),
-            opportunity_id=opportunity_id,
-            from_status=from_status,
-            to_status=OpportunityStatus.ANALYZING.value,
-            triggered_by=TransitionTrigger.SYSTEM.value,
-            is_unusual=False,
-            note="Follow-up message received",
-            created_at=now,
-            updated_at=now,
-        )
-        session.add(transition)
 
         await session.flush()
 

@@ -49,8 +49,11 @@ class Settings(BaseSettings):
     # Ingestion
     max_message_length: int = 50000
 
-    # Pipeline steps (ordered agent sequence for the main pipeline)
-    pipeline_steps: list[str] = ["guardrail", "gatekeeper", "extractor", "analyst", "communicator"]
+    @property
+    def pipeline_steps(self) -> list[str]:
+        """Ordered agent sequence — derived from model_router.PIPELINE_STEPS (single source of truth)."""
+        from talent_inbound.modules.pipeline.infrastructure.model_router import PIPELINE_STEPS
+        return PIPELINE_STEPS
 
     # Scoring weights (Analyst agent)
     scoring_base: int = 50

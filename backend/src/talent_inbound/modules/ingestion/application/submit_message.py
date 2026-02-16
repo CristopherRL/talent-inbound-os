@@ -16,7 +16,7 @@ from talent_inbound.modules.opportunities.domain.repositories import (
 )
 from talent_inbound.shared.domain.enums import (
     InteractionSource,
-    OpportunityStatus,
+    OpportunityStage,
     TransitionTrigger,
 )
 from talent_inbound.shared.infrastructure.event_bus import InProcessEventBus
@@ -73,10 +73,10 @@ class SubmitMessage:
         if existing and existing.opportunity_id:
             raise DuplicateInteractionError(existing.opportunity_id)
 
-        # Create the Opportunity (starts in ANALYZING status)
+        # Create the Opportunity (starts in DISCOVERY stage)
         opportunity = Opportunity(candidate_id=command.candidate_id)
-        opportunity.change_status(
-            OpportunityStatus.ANALYZING,
+        opportunity.change_stage(
+            OpportunityStage.DISCOVERY,
             triggered_by=TransitionTrigger.SYSTEM,
             note="Auto-created from submitted message",
         )

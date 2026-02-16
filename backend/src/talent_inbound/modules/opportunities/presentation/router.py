@@ -1,4 +1,4 @@
-"""Opportunities API router — list, detail, status change, archive, stale."""
+"""Opportunities API router — list, detail, stage change, archive, stale."""
 
 from datetime import datetime, timezone
 
@@ -14,9 +14,9 @@ from talent_inbound.modules.opportunities.application.archive import (
     ArchiveOpportunity,
     UnarchiveOpportunity,
 )
-from talent_inbound.modules.opportunities.application.change_status import (
-    ChangeStatus,
-    ChangeStatusCommand,
+from talent_inbound.modules.opportunities.application.change_stage import (
+    ChangeStage,
+    ChangeStageCommand,
 )
 from talent_inbound.modules.opportunities.application.confirm_draft_sent import (
     ConfirmDraftSent,
@@ -38,18 +38,20 @@ from talent_inbound.modules.opportunities.application.generate_draft import (
     GenerateDraft,
 )
 from talent_inbound.modules.opportunities.presentation.schemas import (
+    AcceptStageSuggestionResponse,
     ArchiveResponse,
-    ChangeStatusRequest,
-    ChangeStatusResponse,
+    ChangeStageRequest,
+    ChangeStageResponse,
     ConfirmSentResponse,
+    DismissStageSuggestionResponse,
     DraftResponseItem,
     EditDraftRequest,
     GenerateDraftRequest,
     InteractionSummary,
     OpportunityDetailResponse,
     OpportunityListItem,
+    StageTransitionItem,
     StaleOpportunityItem,
-    StatusTransitionItem,
     SubmitFollowUpRequest,
     SubmitFollowUpResponse,
 )
@@ -71,7 +73,7 @@ def _opp_to_list_item(opp) -> OpportunityListItem:
         recruiter_type=opp.recruiter_type.value if hasattr(opp.recruiter_type, "value") else opp.recruiter_type,
         match_score=opp.match_score,
         missing_fields=opp.missing_fields,
-        status=opp.status.value if hasattr(opp.status, "value") else opp.status,
+        stage=opp.stage.value if hasattr(opp.stage, "value") else opp.stage,
         is_archived=opp.is_archived,
         created_at=opp.created_at,
         updated_at=opp.updated_at,
@@ -82,7 +84,7 @@ def _opp_to_list_item(opp) -> OpportunityListItem:
 @inject
 async def list_opportunities(
     current_user: User = Depends(get_current_user),
-    status: str | None = Query(None, description="Filter by status"),
+    stage: str | None = Query(None, description="Filter by stage"),
     archived: str | None = Query(
         None,
         description="Archive filter: omit for active only, 'only' for archived only, 'all' for everything",
@@ -94,7 +96,7 @@ async def list_opportunities(
     opportunities = await opportunity_repo.list_by_candidate(
         current_user.id,
         archived_filter=archived,
-        status_filter=status,
+        stage_filter=stage,
     )
     return [_opp_to_list_item(opp) for opp in opportunities]
 
@@ -114,7 +116,7 @@ async def get_stale_opportunities(
             id=opp.id,
             company_name=opp.company_name,
             role_title=opp.role_title,
-            status=opp.status.value if hasattr(opp.status, "value") else opp.status,
+            stage=opp.stage.value if hasattr(opp.stage, "value") else opp.stage,
             last_interaction_at=opp.last_interaction_at,
             days_since_interaction=(
                 (now - opp.last_interaction_at).days
@@ -168,11 +170,11 @@ async def get_opportunity_detail(
         for i in interaction_models
     ]
 
-    status_history = [
-        StatusTransitionItem(
+    stage_history = [
+        StageTransitionItem(
             id=t.id,
-            from_status=t.from_status.value if hasattr(t.from_status, "value") else t.from_status,
-            to_status=t.to_status.value if hasattr(t.to_status, "value") else t.to_status,
+            from_stage=t.from_stage.value if hasattr(t.from_stage, "value") else t.from_stage,
+            to_stage=t.to_stage.value if hasattr(t.to_stage, "value") else t.to_stage,
             triggered_by=t.triggered_by.value if hasattr(t.triggered_by, "value") else t.triggered_by,
             is_unusual=t.is_unusual,
             note=t.note,
@@ -181,7 +183,7 @@ async def get_opportunity_detail(
         for t in transitions
     ]
 
-    # Load draft responses (empty for now — implemented in Phase 9)
+    # Load draft responses
     from talent_inbound.modules.opportunities.infrastructure.orm_models import (
         DraftResponseModel,
     )
@@ -222,10 +224,12 @@ async def get_opportunity_detail(
         match_score=opp.match_score,
         match_reasoning=opp.match_reasoning,
         missing_fields=opp.missing_fields,
-        status=opp.status.value if hasattr(opp.status, "value") else opp.status,
+        stage=opp.stage.value if hasattr(opp.stage, "value") else opp.stage,
+        suggested_stage=opp.suggested_stage.value if hasattr(opp.suggested_stage, "value") and opp.suggested_stage else opp.suggested_stage,
+        suggested_stage_reason=opp.suggested_stage_reason,
         is_archived=opp.is_archived,
         interactions=interactions,
-        status_history=status_history,
+        stage_history=stage_history,
         draft_responses=drafts,
         created_at=opp.created_at,
         updated_at=opp.updated_at,
@@ -233,51 +237,110 @@ async def get_opportunity_detail(
     )
 
 
-@router.patch("/{opportunity_id}/status", response_model=ChangeStatusResponse)
+@router.patch("/{opportunity_id}/stage", response_model=ChangeStageResponse)
 @inject
-async def change_status(
+async def change_stage(
     opportunity_id: str,
-    body: ChangeStatusRequest,
+    body: ChangeStageRequest,
     current_user: User = Depends(get_current_user),
-    change_status_uc: ChangeStatus = Depends(
-        Provide[Container.change_status_uc]
+    change_stage_uc: ChangeStage = Depends(
+        Provide[Container.change_stage_uc]
     ),
     opportunity_repo: OpportunityRepository = Depends(
         Provide[Container.opportunity_repo]
     ),
-) -> ChangeStatusResponse:
+) -> ChangeStageResponse:
     # Verify ownership
     opp = await opportunity_repo.find_by_id(opportunity_id)
     if opp is None or opp.candidate_id != current_user.id:
         raise HTTPException(status_code=404, detail="Opportunity not found")
 
     try:
-        cmd = ChangeStatusCommand(
+        cmd = ChangeStageCommand(
             opportunity_id=opportunity_id,
-            new_status=body.new_status,
+            new_stage=body.new_stage,
             triggered_by=TransitionTrigger.USER,
             note=body.note,
         )
-        transition = await change_status_uc.execute(cmd)
+        transition = await change_stage_uc.execute(cmd)
     except OpportunityNotFoundError:
         raise HTTPException(status_code=404, detail="Opportunity not found")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    return ChangeStatusResponse(
+    return ChangeStageResponse(
         id=opportunity_id,
-        status=transition.to_status.value if hasattr(transition.to_status, "value") else transition.to_status,
+        stage=transition.to_stage.value if hasattr(transition.to_stage, "value") else transition.to_stage,
         is_unusual=transition.is_unusual,
-        transition=StatusTransitionItem(
+        transition=StageTransitionItem(
             id=transition.id,
-            from_status=transition.from_status.value if hasattr(transition.from_status, "value") else transition.from_status,
-            to_status=transition.to_status.value if hasattr(transition.to_status, "value") else transition.to_status,
+            from_stage=transition.from_stage.value if hasattr(transition.from_stage, "value") else transition.from_stage,
+            to_stage=transition.to_stage.value if hasattr(transition.to_stage, "value") else transition.to_stage,
             triggered_by=transition.triggered_by.value if hasattr(transition.triggered_by, "value") else transition.triggered_by,
             is_unusual=transition.is_unusual,
             note=transition.note,
             created_at=transition.created_at,
         ),
     )
+
+
+@router.post("/{opportunity_id}/accept-stage-suggestion", response_model=AcceptStageSuggestionResponse)
+@inject
+async def accept_stage_suggestion(
+    opportunity_id: str,
+    current_user: User = Depends(get_current_user),
+    opportunity_repo: OpportunityRepository = Depends(
+        Provide[Container.opportunity_repo]
+    ),
+) -> AcceptStageSuggestionResponse:
+    opp = await opportunity_repo.find_by_id(opportunity_id)
+    if opp is None or opp.candidate_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+
+    if opp.suggested_stage is None:
+        raise HTTPException(status_code=400, detail="No stage suggestion to accept")
+
+    transition = opp.accept_stage_suggestion()
+    await opportunity_repo.update(opp)
+    if transition:
+        await opportunity_repo.save_transition(transition)
+
+    transition_item = None
+    if transition:
+        transition_item = StageTransitionItem(
+            id=transition.id,
+            from_stage=transition.from_stage.value if hasattr(transition.from_stage, "value") else transition.from_stage,
+            to_stage=transition.to_stage.value if hasattr(transition.to_stage, "value") else transition.to_stage,
+            triggered_by=transition.triggered_by.value if hasattr(transition.triggered_by, "value") else transition.triggered_by,
+            is_unusual=transition.is_unusual,
+            note=transition.note,
+            created_at=transition.created_at,
+        )
+
+    return AcceptStageSuggestionResponse(
+        id=opportunity_id,
+        stage=opp.stage.value if hasattr(opp.stage, "value") else opp.stage,
+        transition=transition_item,
+    )
+
+
+@router.post("/{opportunity_id}/dismiss-stage-suggestion", response_model=DismissStageSuggestionResponse)
+@inject
+async def dismiss_stage_suggestion(
+    opportunity_id: str,
+    current_user: User = Depends(get_current_user),
+    opportunity_repo: OpportunityRepository = Depends(
+        Provide[Container.opportunity_repo]
+    ),
+) -> DismissStageSuggestionResponse:
+    opp = await opportunity_repo.find_by_id(opportunity_id)
+    if opp is None or opp.candidate_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+
+    opp.dismiss_stage_suggestion()
+    await opportunity_repo.update(opp)
+
+    return DismissStageSuggestionResponse(id=opportunity_id)
 
 
 @router.post("/{opportunity_id}/archive", response_model=ArchiveResponse)
@@ -517,7 +580,8 @@ async def submit_followup(
         opp_repo = C.opportunity_repo()
         profile_repo = C.profile_repo()
         graph = build_followup_pipeline(
-            model_router, profile_repo=profile_repo, scoring_weights=scoring_weights
+            model_router, profile_repo=profile_repo, scoring_weights=scoring_weights,
+            opportunity_repo=opp_repo,
         )
         pipeline_uc = ProcessPipeline(
             interaction_repo=interaction_repo,

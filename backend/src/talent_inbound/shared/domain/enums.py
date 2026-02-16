@@ -3,29 +3,27 @@
 from enum import StrEnum
 
 
-class OpportunityStatus(StrEnum):
-    NEW = "NEW"
-    ANALYZING = "ANALYZING"
-    ACTION_REQUIRED = "ACTION_REQUIRED"
-    REVIEWING = "REVIEWING"
+class OpportunityStage(StrEnum):
+    DISCOVERY = "DISCOVERY"
+    ENGAGING = "ENGAGING"
     INTERVIEWING = "INTERVIEWING"
+    NEGOTIATING = "NEGOTIATING"
     OFFER = "OFFER"
     REJECTED = "REJECTED"
     GHOSTED = "GHOSTED"
 
 
-TERMINAL_STATUSES = frozenset({
-    OpportunityStatus.OFFER,
-    OpportunityStatus.REJECTED,
-    OpportunityStatus.GHOSTED,
+TERMINAL_STAGES = frozenset({
+    OpportunityStage.OFFER,
+    OpportunityStage.REJECTED,
+    OpportunityStage.GHOSTED,
 })
 
-STANDARD_FLOW = [
-    OpportunityStatus.NEW,
-    OpportunityStatus.ANALYZING,
-    OpportunityStatus.ACTION_REQUIRED,
-    OpportunityStatus.REVIEWING,
-    OpportunityStatus.INTERVIEWING,
+STAGE_FLOW = [
+    OpportunityStage.DISCOVERY,
+    OpportunityStage.ENGAGING,
+    OpportunityStage.INTERVIEWING,
+    OpportunityStage.NEGOTIATING,
 ]
 
 

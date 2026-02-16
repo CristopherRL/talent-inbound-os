@@ -7,11 +7,11 @@ from talent_inbound.modules.opportunities.domain.exceptions import (
 from talent_inbound.modules.opportunities.domain.repositories import (
     OpportunityRepository,
 )
-from talent_inbound.shared.domain.enums import TERMINAL_STATUSES
+from talent_inbound.shared.domain.enums import TERMINAL_STAGES
 
 
 class ArchiveOpportunity:
-    """Archive an opportunity. Only allowed for terminal statuses."""
+    """Archive an opportunity. Only allowed for terminal stages."""
 
     def __init__(self, opportunity_repo: OpportunityRepository) -> None:
         self._repo = opportunity_repo
@@ -21,9 +21,9 @@ class ArchiveOpportunity:
         if opportunity is None:
             raise OpportunityNotFoundError(opportunity_id)
 
-        if opportunity.status not in TERMINAL_STATUSES:
+        if opportunity.stage not in TERMINAL_STAGES:
             raise ValueError(
-                f"Cannot archive: status '{opportunity.status.value}' is not terminal. "
+                f"Cannot archive: stage '{opportunity.stage.value}' is not terminal. "
                 "Only OFFER, REJECTED, or GHOSTED opportunities can be archived."
             )
 

@@ -19,14 +19,19 @@ class ModelTier(StrEnum):
     SMART = "SMART"
 
 
-# Agent → tier mapping
+# Agent → tier mapping (ordered: defines the canonical pipeline step sequence)
 AGENT_TIERS: dict[str, ModelTier] = {
     "guardrail": ModelTier.FAST,
     "gatekeeper": ModelTier.FAST,
     "extractor": ModelTier.SMART,
     "analyst": ModelTier.SMART,
     "communicator": ModelTier.SMART,
+    "stage_detector": ModelTier.FAST,
 }
+
+# Canonical ordered list of pipeline steps — derived from AGENT_TIERS.
+# This is the single source of truth. Import it wherever you need the step list.
+PIPELINE_STEPS: list[str] = list(AGENT_TIERS.keys())
 
 
 class ModelRouter:

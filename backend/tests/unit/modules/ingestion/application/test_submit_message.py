@@ -17,7 +17,7 @@ from talent_inbound.modules.ingestion.domain.exceptions import (
 from talent_inbound.modules.opportunities.domain.entities import Opportunity
 from talent_inbound.shared.domain.enums import (
     InteractionSource,
-    OpportunityStatus,
+    OpportunityStage,
     ProcessingStatus,
 )
 
@@ -66,7 +66,7 @@ class TestSubmitMessage:
         assert result.interaction.source == InteractionSource.LINKEDIN
         assert result.interaction.processing_status == ProcessingStatus.PENDING
         assert result.opportunity.candidate_id == "user-1"
-        assert result.opportunity.status == OpportunityStatus.ANALYZING
+        assert result.opportunity.stage == OpportunityStage.DISCOVERY
         mock_interaction_repo.save.assert_called_once()
         mock_opportunity_repo.save.assert_called_once()
 

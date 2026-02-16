@@ -5,7 +5,7 @@ import factory
 from talent_inbound.shared.domain.enums import (
     InteractionSource,
     InteractionType,
-    OpportunityStatus,
+    OpportunityStage,
     ProcessingStatus,
     WorkModel,
 )
@@ -81,5 +81,5 @@ class OpportunityFactory(factory.Factory):
     match_score = factory.Faker("random_int", min=0, max=100)
     match_reasoning = None
     missing_fields = []
-    status = OpportunityStatus.NEW
+    stage = OpportunityStage.DISCOVERY
     is_archived = False

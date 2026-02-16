@@ -44,6 +44,7 @@ async def _run_migrations_on_test_db():
 
     engine = create_app_engine(_TEST_DB_URL)
     async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     await engine.dispose()
 
@@ -114,7 +115,7 @@ async def client():
         await session.execute(
             text(
                 "TRUNCATE draft_responses, interactions, opportunities, "
-                "status_transitions, candidate_profiles, users CASCADE"
+                "stage_transitions, candidate_profiles, users CASCADE"
             )
         )
         await session.commit()

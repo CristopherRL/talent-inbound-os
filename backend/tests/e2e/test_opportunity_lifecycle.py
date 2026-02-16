@@ -1,4 +1,4 @@
-"""E2E test for opportunity status change flow and archive."""
+"""E2E test for opportunity stage change flow and archive."""
 
 import pytest
 from httpx import AsyncClient
@@ -30,9 +30,9 @@ async def _submit_offer(client: AsyncClient, cookies: dict, text: str, source: s
 
 @pytest.mark.e2e
 class TestOpportunityLifecycle:
-    """Tests status changes, unusual detection, archive/unarchive."""
+    """Tests stage changes, unusual detection, archive/unarchive."""
 
-    async def test_change_status_normal(self, client: AsyncClient):
+    async def test_change_stage_normal(self, client: AsyncClient):
         cookies = await _register_and_login(client)
         opp_id = await _submit_offer(
             client, cookies,
@@ -40,17 +40,17 @@ class TestOpportunityLifecycle:
         )
 
         resp = await client.patch(
-            f"/api/v1/opportunities/{opp_id}/status",
-            json={"new_status": "REVIEWING", "note": "Reviewed the details"},
+            f"/api/v1/opportunities/{opp_id}/stage",
+            json={"new_stage": "ENGAGING", "note": "Starting conversation"},
             cookies=cookies,
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert data["status"] == "REVIEWING"
+        assert data["stage"] == "ENGAGING"
         assert data["is_unusual"] is False
-        assert data["transition"]["note"] == "Reviewed the details"
+        assert data["transition"]["note"] == "Starting conversation"
 
-    async def test_change_status_unusual_skip(self, client: AsyncClient):
+    async def test_change_stage_unusual_skip(self, client: AsyncClient):
         cookies = await _register_and_login(client)
         opp_id = await _submit_offer(
             client, cookies,
@@ -58,16 +58,16 @@ class TestOpportunityLifecycle:
             source="EMAIL",
         )
 
-        # Skip from ACTION_REQUIRED to OFFER (unusual)
+        # Skip from DISCOVERY to OFFER (unusual)
         resp = await client.patch(
-            f"/api/v1/opportunities/{opp_id}/status",
-            json={"new_status": "OFFER"},
+            f"/api/v1/opportunities/{opp_id}/stage",
+            json={"new_stage": "OFFER"},
             cookies=cookies,
         )
         assert resp.status_code == 200
         assert resp.json()["is_unusual"] is True
 
-    async def test_archive_terminal_status(self, client: AsyncClient):
+    async def test_archive_terminal_stage(self, client: AsyncClient):
         cookies = await _register_and_login(client)
         opp_id = await _submit_offer(
             client, cookies,
@@ -76,8 +76,8 @@ class TestOpportunityLifecycle:
 
         # Move to REJECTED (terminal)
         await client.patch(
-            f"/api/v1/opportunities/{opp_id}/status",
-            json={"new_status": "REJECTED"},
+            f"/api/v1/opportunities/{opp_id}/stage",
+            json={"new_stage": "REJECTED"},
             cookies=cookies,
         )
 
@@ -118,7 +118,7 @@ class TestOpportunityLifecycle:
             source="EMAIL",
         )
 
-        # Try to archive non-terminal (ACTION_REQUIRED)
+        # Try to archive non-terminal (DISCOVERY)
         resp = await client.post(
             f"/api/v1/opportunities/{opp_id}/archive",
             cookies=cookies,
@@ -134,8 +134,8 @@ class TestOpportunityLifecycle:
 
         # REJECTED → archive → unarchive
         await client.patch(
-            f"/api/v1/opportunities/{opp_id}/status",
-            json={"new_status": "REJECTED"},
+            f"/api/v1/opportunities/{opp_id}/stage",
+            json={"new_stage": "REJECTED"},
             cookies=cookies,
         )
         await client.post(f"/api/v1/opportunities/{opp_id}/archive", cookies=cookies)
@@ -154,10 +154,10 @@ class TestOpportunityLifecycle:
             "Platform Engineer at ScaleCo. Remote. $130-160K. Stack: Kubernetes, Go.",
         )
 
-        # Change status to generate transitions
+        # Change stage to generate transitions
         await client.patch(
-            f"/api/v1/opportunities/{opp_id}/status",
-            json={"new_status": "REVIEWING"},
+            f"/api/v1/opportunities/{opp_id}/stage",
+            json={"new_stage": "ENGAGING"},
             cookies=cookies,
         )
 
@@ -168,27 +168,27 @@ class TestOpportunityLifecycle:
         detail = resp.json()
 
         assert len(detail["interactions"]) >= 1
-        assert len(detail["status_history"]) >= 1
-        assert detail["status"] == "REVIEWING"
+        assert len(detail["stage_history"]) >= 1
+        assert detail["stage"] == "ENGAGING"
 
-    async def test_filter_by_status(self, client: AsyncClient):
+    async def test_filter_by_stage(self, client: AsyncClient):
         cookies = await _register_and_login(client)
 
-        # Submit and move one to REVIEWING
+        # Submit and move one to ENGAGING
         opp_id = await _submit_offer(
             client, cookies,
             "SRE at InfraCo. Remote. $140-170K. Stack: Python, Terraform.",
             source="EMAIL",
         )
         await client.patch(
-            f"/api/v1/opportunities/{opp_id}/status",
-            json={"new_status": "REVIEWING"},
+            f"/api/v1/opportunities/{opp_id}/stage",
+            json={"new_stage": "ENGAGING"},
             cookies=cookies,
         )
 
         resp = await client.get(
-            "/api/v1/opportunities?status=REVIEWING", cookies=cookies
+            "/api/v1/opportunities?stage=ENGAGING", cookies=cookies
         )
         assert resp.status_code == 200
         for opp in resp.json():
-            assert opp["status"] == "REVIEWING"
+            assert opp["stage"] == "ENGAGING"

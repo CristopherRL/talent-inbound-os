@@ -6,7 +6,7 @@ export interface OpportunityListItem {
   id: string;
   company_name: string | null;
   role_title: string | null;
-  status: string;
+  stage: string;
   match_score: number | null;
   missing_fields: string[];
   tech_stack: string[];
@@ -31,7 +31,9 @@ export interface OpportunityDetail {
   match_score: number | null;
   match_reasoning: string | null;
   missing_fields: string[];
-  status: string;
+  stage: string;
+  suggested_stage: string | null;
+  suggested_stage_reason: string | null;
   is_archived: boolean;
   interactions: {
     id: string;
@@ -40,10 +42,10 @@ export interface OpportunityDetail {
     raw_content: string;
     created_at: string;
   }[];
-  status_history: {
+  stage_history: {
     id: string;
-    from_status: string;
-    to_status: string;
+    from_stage: string;
+    to_stage: string;
     triggered_by: string;
     is_unusual: boolean;
     note: string | null;
@@ -68,18 +70,18 @@ export interface StaleItem {
   id: string;
   company_name: string | null;
   role_title: string | null;
-  status: string;
+  stage: string;
   last_interaction_at: string | null;
   days_since_interaction: number | null;
 }
 
-export interface ChangeStatusResult {
+export interface ChangeStageResult {
   id: string;
-  status: string;
+  stage: string;
   is_unusual: boolean;
   transition: {
-    from_status: string;
-    to_status: string;
+    from_stage: string;
+    to_stage: string;
     triggered_by: string;
     is_unusual: boolean;
     note: string | null;
@@ -88,10 +90,10 @@ export interface ChangeStatusResult {
 }
 
 export async function fetchOpportunities(
-  params?: { status?: string; archived?: string },
+  params?: { stage?: string; archived?: string },
 ): Promise<OpportunityListItem[]> {
   const query = new URLSearchParams();
-  if (params?.status) query.set("status", params.status);
+  if (params?.stage) query.set("stage", params.stage);
   if (params?.archived) query.set("archived", params.archived);
   const qs = query.toString();
   return apiGet<OpportunityListItem[]>(`/opportunities${qs ? `?${qs}` : ""}`);
@@ -107,15 +109,27 @@ export async function fetchStaleOpportunities(): Promise<StaleItem[]> {
   return apiGet<StaleItem[]>("/opportunities/stale");
 }
 
-export async function changeStatus(
+export async function changeStage(
   opportunityId: string,
-  newStatus: string,
+  newStage: string,
   note?: string,
-): Promise<ChangeStatusResult> {
-  return apiPatch<ChangeStatusResult>(`/opportunities/${opportunityId}/status`, {
-    new_status: newStatus,
+): Promise<ChangeStageResult> {
+  return apiPatch<ChangeStageResult>(`/opportunities/${opportunityId}/stage`, {
+    new_stage: newStage,
     note,
   });
+}
+
+export async function acceptStageSuggestion(
+  opportunityId: string,
+): Promise<{ id: string; stage: string }> {
+  return apiPost(`/opportunities/${opportunityId}/accept-stage-suggestion`);
+}
+
+export async function dismissStageSuggestion(
+  opportunityId: string,
+): Promise<{ id: string }> {
+  return apiPost(`/opportunities/${opportunityId}/dismiss-stage-suggestion`);
 }
 
 export async function archiveOpportunity(

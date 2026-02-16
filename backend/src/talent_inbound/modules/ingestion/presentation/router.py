@@ -77,7 +77,7 @@ async def submit_message(
         }
         opp_repo = Container.opportunity_repo()
         profile_repo = Container.profile_repo()
-        graph = build_main_pipeline(model_router, profile_repo=profile_repo, scoring_weights=scoring_weights)
+        graph = build_main_pipeline(model_router, profile_repo=profile_repo, scoring_weights=scoring_weights, opportunity_repo=opp_repo)
         pipeline_uc = ProcessPipeline(
             interaction_repo=interaction_repo,
             opportunity_repo=opp_repo,
@@ -85,17 +85,17 @@ async def submit_message(
             sse_emitter=sse_emitter,
         )
         await pipeline_uc.execute(result.interaction.id)
-        # Re-fetch opportunity to get updated status after pipeline
+        # Re-fetch opportunity to get updated stage after pipeline
         updated_opp = await opp_repo.find_by_id(result.opportunity.id)
-        final_status = updated_opp.status.value if updated_opp else result.opportunity.status.value
+        final_stage = updated_opp.stage.value if updated_opp else result.opportunity.stage.value
     except Exception:
         logger.exception("inline_pipeline_failed")
-        final_status = result.opportunity.status.value
+        final_stage = result.opportunity.stage.value
 
     return SubmitMessageResponse(
         interaction_id=result.interaction.id,
         opportunity_id=result.opportunity.id,
-        status=final_status,
+        stage=final_stage,
     )
 
 

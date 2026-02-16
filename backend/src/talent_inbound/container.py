@@ -18,7 +18,7 @@ from talent_inbound.modules.opportunities.application.archive import (
     ArchiveOpportunity,
     UnarchiveOpportunity,
 )
-from talent_inbound.modules.opportunities.application.change_status import ChangeStatus
+from talent_inbound.modules.opportunities.application.change_stage import ChangeStage
 from talent_inbound.modules.opportunities.application.confirm_draft_sent import (
     ConfirmDraftSent,
 )
@@ -167,8 +167,8 @@ class Container(containers.DeclarativeContainer):
     )
 
     # --- Opportunities use cases ---
-    change_status_uc = providers.Factory(
-        ChangeStatus,
+    change_stage_uc = providers.Factory(
+        ChangeStage,
         opportunity_repo=opportunity_repo,
     )
 

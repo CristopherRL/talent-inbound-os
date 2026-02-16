@@ -5,7 +5,7 @@ from datetime import datetime
 
 from talent_inbound.modules.opportunities.domain.entities import (
     Opportunity,
-    StatusTransition,
+    StageTransition,
 )
 
 
@@ -25,7 +25,7 @@ class OpportunityRepository(ABC):
         self,
         candidate_id: str,
         archived_filter: str | None = None,
-        status_filter: str | None = None,
+        stage_filter: str | None = None,
     ) -> list[Opportunity]:
         """List opportunities for a candidate.
 
@@ -40,12 +40,12 @@ class OpportunityRepository(ABC):
         """Update an existing opportunity."""
 
     @abstractmethod
-    async def save_transition(self, transition: StatusTransition) -> StatusTransition:
-        """Persist a status transition audit record."""
+    async def save_transition(self, transition: StageTransition) -> StageTransition:
+        """Persist a stage transition audit record."""
 
     @abstractmethod
-    async def list_transitions(self, opportunity_id: str) -> list[StatusTransition]:
-        """List all status transitions for an opportunity, ordered by created_at."""
+    async def list_transitions(self, opportunity_id: str) -> list[StageTransition]:
+        """List all stage transitions for an opportunity, ordered by created_at."""
 
     @abstractmethod
     async def list_stale(

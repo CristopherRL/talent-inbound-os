@@ -1,5 +1,6 @@
 """ConfirmDraftSent use case — marks a final draft as sent and creates
-a CANDIDATE_RESPONSE interaction to record it in the timeline."""
+a CANDIDATE_RESPONSE interaction to record it in the timeline.
+Auto-advances DISCOVERY → ENGAGING on first send."""
 
 from datetime import datetime, timezone
 
@@ -10,10 +11,13 @@ from talent_inbound.modules.ingestion.infrastructure.orm_models import Interacti
 from talent_inbound.modules.opportunities.infrastructure.orm_models import (
     DraftResponseModel,
     OpportunityModel,
+    StageTransitionModel,
 )
 from talent_inbound.shared.domain.enums import (
     InteractionType,
+    OpportunityStage,
     ProcessingStatus,
+    TransitionTrigger,
 )
 from talent_inbound.shared.infrastructure.database import get_current_session
 
@@ -72,7 +76,7 @@ class ConfirmDraftSent:
         )
         session.add(interaction)
 
-        # Update opportunity.last_interaction_at
+        # Update opportunity.last_interaction_at + auto-advance stage
         opp_stmt = select(OpportunityModel).where(
             OpportunityModel.id == opportunity_id
         )
@@ -80,6 +84,24 @@ class ConfirmDraftSent:
         opp = opp_result.scalar_one_or_none()
         if opp:
             opp.last_interaction_at = now
+
+            # Auto-advance: DISCOVERY → ENGAGING when user sends first response
+            if opp.stage == OpportunityStage.DISCOVERY.value:
+                from_stage = opp.stage
+                opp.stage = OpportunityStage.ENGAGING.value
+
+                transition = StageTransitionModel(
+                    id=str(uuid.uuid4()),
+                    opportunity_id=opportunity_id,
+                    from_stage=from_stage,
+                    to_stage=OpportunityStage.ENGAGING.value,
+                    triggered_by=TransitionTrigger.SYSTEM.value,
+                    is_unusual=False,
+                    note="Auto-advanced: user sent first response",
+                    created_at=now,
+                    updated_at=now,
+                )
+                session.add(transition)
 
         await session.flush()
 

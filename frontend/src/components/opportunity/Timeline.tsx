@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import StatusBadge from "./StatusBadge";
+import StageBadge from "./StageBadge";
 
 interface TimelineEvent {
   id: string;
@@ -12,8 +12,8 @@ interface TimelineEvent {
   interaction_type?: string;
   raw_content?: string;
   // transition fields
-  from_status?: string;
-  to_status?: string;
+  from_stage?: string;
+  to_stage?: string;
   triggered_by?: string;
   is_unusual?: boolean;
   note?: string;
@@ -92,10 +92,10 @@ function TransitionEvent({ event }: { event: TimelineEvent }) {
       </div>
       <div className="pb-4 flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-gray-500">Status changed</span>
-          {event.from_status && <StatusBadge status={event.from_status} />}
+          <span className="text-xs text-gray-500">Stage changed</span>
+          {event.from_stage && <StageBadge stage={event.from_stage} />}
           <span className="text-xs text-gray-400">&rarr;</span>
-          {event.to_status && <StatusBadge status={event.to_status} />}
+          {event.to_stage && <StageBadge stage={event.to_stage} />}
           <span className="text-xs text-gray-400">
             by {event.triggered_by}
           </span>

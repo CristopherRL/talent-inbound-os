@@ -1,4 +1,4 @@
-"""SQLAlchemy ORM models for Opportunity and StatusTransition entities."""
+"""SQLAlchemy ORM models for Opportunity and StageTransition entities."""
 
 import uuid
 from datetime import datetime, timezone
@@ -11,7 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from talent_inbound.modules.opportunities.domain.entities import (
     Opportunity,
-    StatusTransition,
+    StageTransition,
 )
 from talent_inbound.shared.domain.enums import ResponseType
 from talent_inbound.shared.infrastructure.database import Base
@@ -47,9 +47,11 @@ class OpportunityModel(Base):
     missing_fields: Mapped[list[str] | None] = mapped_column(
         ARRAY(String), nullable=True, default=list
     )
-    status: Mapped[str] = mapped_column(
-        String(30), nullable=False, default="NEW", index=True
+    stage: Mapped[str] = mapped_column(
+        String(30), nullable=False, default="DISCOVERY", index=True
     )
+    suggested_stage: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    suggested_stage_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_archived: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False
     )
@@ -85,7 +87,9 @@ class OpportunityModel(Base):
             match_score=self.match_score,
             match_reasoning=self.match_reasoning,
             missing_fields=self.missing_fields or [],
-            status=self.status,
+            stage=self.stage,
+            suggested_stage=self.suggested_stage,
+            suggested_stage_reason=self.suggested_stage_reason,
             is_archived=self.is_archived,
             last_interaction_at=self.last_interaction_at,
             created_at=self.created_at,
@@ -118,11 +122,17 @@ class OpportunityModel(Base):
             match_score=opportunity.match_score,
             match_reasoning=opportunity.match_reasoning,
             missing_fields=opportunity.missing_fields,
-            status=(
-                opportunity.status.value
-                if isinstance(opportunity.status, StrEnum)
-                else opportunity.status
+            stage=(
+                opportunity.stage.value
+                if isinstance(opportunity.stage, StrEnum)
+                else opportunity.stage
             ),
+            suggested_stage=(
+                opportunity.suggested_stage.value
+                if isinstance(opportunity.suggested_stage, StrEnum)
+                else opportunity.suggested_stage
+            ),
+            suggested_stage_reason=opportunity.suggested_stage_reason,
             is_archived=opportunity.is_archived,
             last_interaction_at=opportunity.last_interaction_at,
             created_at=opportunity.created_at,
@@ -130,10 +140,10 @@ class OpportunityModel(Base):
         )
 
 
-class StatusTransitionModel(Base):
-    """status_transitions table — audit log for opportunity status changes."""
+class StageTransitionModel(Base):
+    """stage_transitions table — audit log for opportunity stage changes."""
 
-    __tablename__ = "status_transitions"
+    __tablename__ = "stage_transitions"
 
     id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())
@@ -144,8 +154,8 @@ class StatusTransitionModel(Base):
         nullable=False,
         index=True,
     )
-    from_status: Mapped[str] = mapped_column(String(30), nullable=False)
-    to_status: Mapped[str] = mapped_column(String(30), nullable=False)
+    from_stage: Mapped[str] = mapped_column(String(30), nullable=False)
+    to_stage: Mapped[str] = mapped_column(String(30), nullable=False)
     triggered_by: Mapped[str] = mapped_column(String(20), nullable=False)
     is_unusual: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     note: Mapped[str | None] = mapped_column(String(500), nullable=True)
@@ -161,13 +171,13 @@ class StatusTransitionModel(Base):
         onupdate=lambda: datetime.now(timezone.utc),
     )
 
-    def to_domain(self) -> StatusTransition:
+    def to_domain(self) -> StageTransition:
         """Convert ORM model to domain entity."""
-        return StatusTransition(
+        return StageTransition(
             id=self.id,
             opportunity_id=self.opportunity_id,
-            from_status=self.from_status,
-            to_status=self.to_status,
+            from_stage=self.from_stage,
+            to_stage=self.to_stage,
             triggered_by=self.triggered_by,
             is_unusual=self.is_unusual,
             note=self.note,
@@ -176,13 +186,13 @@ class StatusTransitionModel(Base):
         )
 
     @staticmethod
-    def from_domain(transition: StatusTransition) -> "StatusTransitionModel":
+    def from_domain(transition: StageTransition) -> "StageTransitionModel":
         """Create ORM model from domain entity."""
-        return StatusTransitionModel(
+        return StageTransitionModel(
             id=transition.id,
             opportunity_id=transition.opportunity_id,
-            from_status=transition.from_status.value,
-            to_status=transition.to_status.value,
+            from_stage=transition.from_stage.value,
+            to_stage=transition.to_stage.value,
             triggered_by=transition.triggered_by.value,
             is_unusual=transition.is_unusual,
             note=transition.note,

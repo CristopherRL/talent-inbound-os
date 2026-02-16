@@ -53,7 +53,7 @@ async def process_pipeline(ctx: dict, interaction_id: str) -> None:
                 openai_api_key=settings.openai_api_key,
                 anthropic_api_key=settings.anthropic_api_key,
             )
-            graph = build_main_pipeline(model_router)
+            graph = build_main_pipeline(model_router, opportunity_repo=opportunity_repo)
             sse_emitter = ctx.get("sse_emitter", SSEEmitter())
 
             use_case = ProcessPipeline(

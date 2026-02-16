@@ -4,13 +4,13 @@ import {
   SCORING_THRESHOLD_HIGH,
   SCORING_THRESHOLD_MEDIUM,
 } from "@/config/scoring";
-import StatusBadge from "./StatusBadge";
+import StageBadge from "./StageBadge";
 
 export interface OpportunityCardData {
   id: string;
   company_name: string | null;
   role_title: string | null;
-  status: string;
+  stage: string;
   match_score: number | null;
   missing_fields: string[];
   tech_stack: string[];
@@ -39,7 +39,7 @@ export default function OpportunityCard({
           <h3 className="text-sm font-medium text-gray-900 truncate">
             {opp.company_name || "Unknown Company"}
           </h3>
-          <StatusBadge status={opp.status} />
+          <StageBadge stage={opp.stage} />
           {opp.is_stale && (
             <span className="inline-flex items-center rounded-full bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700 border border-orange-200">
               Stale

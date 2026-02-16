@@ -16,7 +16,7 @@ const MAX_LENGTH = 50000;
 interface SubmitResponse {
   interaction_id: string;
   opportunity_id: string;
-  status: string;
+  stage: string;
   message: string;
 }
 

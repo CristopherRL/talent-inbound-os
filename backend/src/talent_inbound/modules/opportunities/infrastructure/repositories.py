@@ -15,14 +15,14 @@ def _enum_value(val) -> str | None:
 
 from talent_inbound.modules.opportunities.domain.entities import (
     Opportunity,
-    StatusTransition,
+    StageTransition,
 )
 from talent_inbound.modules.opportunities.domain.repositories import (
     OpportunityRepository,
 )
 from talent_inbound.modules.opportunities.infrastructure.orm_models import (
     OpportunityModel,
-    StatusTransitionModel,
+    StageTransitionModel,
 )
 
 
@@ -49,7 +49,7 @@ class SqlAlchemyOpportunityRepository(OpportunityRepository):
         self,
         candidate_id: str,
         archived_filter: str | None = None,
-        status_filter: str | None = None,
+        stage_filter: str | None = None,
     ) -> list[Opportunity]:
         stmt = select(OpportunityModel).where(
             OpportunityModel.candidate_id == candidate_id
@@ -61,8 +61,8 @@ class SqlAlchemyOpportunityRepository(OpportunityRepository):
         else:
             # Default: non-archived only
             stmt = stmt.where(OpportunityModel.is_archived == False)  # noqa: E712
-        if status_filter:
-            stmt = stmt.where(OpportunityModel.status == status_filter)
+        if stage_filter:
+            stmt = stmt.where(OpportunityModel.stage == stage_filter)
         stmt = stmt.order_by(OpportunityModel.created_at.desc())
         result = await self._session.execute(stmt)
         models = result.scalars().all()
@@ -89,25 +89,27 @@ class SqlAlchemyOpportunityRepository(OpportunityRepository):
         model.match_score = opportunity.match_score
         model.match_reasoning = opportunity.match_reasoning
         model.missing_fields = opportunity.missing_fields
-        model.status = _enum_value(opportunity.status)
+        model.stage = _enum_value(opportunity.stage)
+        model.suggested_stage = _enum_value(opportunity.suggested_stage)
+        model.suggested_stage_reason = opportunity.suggested_stage_reason
         model.is_archived = opportunity.is_archived
         model.last_interaction_at = opportunity.last_interaction_at
         await self._session.flush()
         await self._session.refresh(model)
         return model.to_domain()
 
-    async def save_transition(self, transition: StatusTransition) -> StatusTransition:
-        model = StatusTransitionModel.from_domain(transition)
+    async def save_transition(self, transition: StageTransition) -> StageTransition:
+        model = StageTransitionModel.from_domain(transition)
         self._session.add(model)
         await self._session.flush()
         await self._session.refresh(model)
         return model.to_domain()
 
-    async def list_transitions(self, opportunity_id: str) -> list[StatusTransition]:
+    async def list_transitions(self, opportunity_id: str) -> list[StageTransition]:
         stmt = (
-            select(StatusTransitionModel)
-            .where(StatusTransitionModel.opportunity_id == opportunity_id)
-            .order_by(StatusTransitionModel.created_at.asc())
+            select(StageTransitionModel)
+            .where(StageTransitionModel.opportunity_id == opportunity_id)
+            .order_by(StageTransitionModel.created_at.asc())
         )
         result = await self._session.execute(stmt)
         models = result.scalars().all()
