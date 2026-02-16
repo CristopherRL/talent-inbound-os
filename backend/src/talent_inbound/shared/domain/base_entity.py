@@ -1,13 +1,13 @@
 """Base domain entities for the Talent Inbound OS shared kernel."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class Entity(BaseModel):

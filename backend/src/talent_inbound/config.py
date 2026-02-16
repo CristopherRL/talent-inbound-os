@@ -6,7 +6,9 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Resolve paths relative to the backend directory, not the CWD
-_BACKEND_DIR = Path(__file__).resolve().parents[2]  # src/talent_inbound -> src -> backend
+_BACKEND_DIR = (
+    Path(__file__).resolve().parents[2]
+)  # src/talent_inbound -> src -> backend
 
 
 class Settings(BaseSettings):
@@ -17,7 +19,9 @@ class Settings(BaseSettings):
     )
 
     # Database
-    database_url: str = "postgresql+asyncpg://talent:talent_dev@localhost:5432/talent_inbound"
+    database_url: str = (
+        "postgresql+asyncpg://talent:talent_dev@localhost:5432/talent_inbound"
+    )
 
     # Redis
     redis_url: str = "redis://localhost:6379"
@@ -49,10 +53,16 @@ class Settings(BaseSettings):
     # Ingestion
     max_message_length: int = 50000
 
+    # Extraction — fields required for a complete extraction (missing = INCOMPLETE_INFO)
+    extraction_required_fields: list[str] = ["salary_range", "tech_stack", "role_title"]
+
     @property
     def pipeline_steps(self) -> list[str]:
         """Ordered agent sequence — derived from model_router.PIPELINE_STEPS (single source of truth)."""
-        from talent_inbound.modules.pipeline.infrastructure.model_router import PIPELINE_STEPS
+        from talent_inbound.modules.pipeline.infrastructure.model_router import (
+            PIPELINE_STEPS,
+        )
+
         return PIPELINE_STEPS
 
     # Scoring weights (Analyst agent)

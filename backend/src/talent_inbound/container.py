@@ -32,11 +32,11 @@ from talent_inbound.modules.opportunities.application.get_stale import (
 from talent_inbound.modules.opportunities.application.submit_followup import (
     SubmitFollowUp,
 )
-from talent_inbound.modules.pipeline.infrastructure.model_router import ModelRouter
-from talent_inbound.modules.pipeline.infrastructure.sse import SSEEmitter
 from talent_inbound.modules.opportunities.infrastructure.repositories import (
     SqlAlchemyOpportunityRepository,
 )
+from talent_inbound.modules.pipeline.infrastructure.model_router import ModelRouter
+from talent_inbound.modules.pipeline.infrastructure.sse import SSEEmitter
 from talent_inbound.modules.profile.application.get_profile import GetProfile
 from talent_inbound.modules.profile.application.update_profile import UpdateProfile
 from talent_inbound.modules.profile.application.upload_cv import UploadCV

@@ -8,15 +8,14 @@ Runs after the communicator as the last pipeline node.
 import json
 import re
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from talent_inbound.modules.pipeline.domain.state import PipelineState, StepLog
 from talent_inbound.modules.pipeline.prompts import load_prompt
-from talent_inbound.shared.domain.enums import OpportunityStage, STAGE_FLOW
-
+from talent_inbound.shared.domain.enums import STAGE_FLOW, OpportunityStage
 
 # Heuristic keyword patterns for stage detection
 _INTERVIEWING_PATTERNS = re.compile(
@@ -55,7 +54,10 @@ def _heuristic_detect(text: str, current_stage: str) -> tuple[str | None, str | 
     # Check for negotiating signals first (higher priority)
     if _NEGOTIATING_PATTERNS.search(text):
         if _is_forward_move(current_stage, "NEGOTIATING"):
-            return "NEGOTIATING", "Message contains compensation/offer discussion signals"
+            return (
+                "NEGOTIATING",
+                "Message contains compensation/offer discussion signals",
+            )
 
     # Check for interviewing signals
     if _INTERVIEWING_PATTERNS.search(text):
@@ -88,7 +90,11 @@ def create_stage_detector_node(
             try:
                 opp = await opportunity_repo.find_by_id(opportunity_id)
                 if opp:
-                    current_stage = opp.stage.value if hasattr(opp.stage, "value") else str(opp.stage)
+                    current_stage = (
+                        opp.stage.value
+                        if hasattr(opp.stage, "value")
+                        else str(opp.stage)
+                    )
             except Exception:
                 pass
 
@@ -109,13 +115,19 @@ def create_stage_detector_node(
                 )
                 messages = [
                     SystemMessage(content=prompt),
-                    HumanMessage(content=f"Analyze this conversation:\n\n{sanitized_text}"),
+                    HumanMessage(
+                        content=f"Analyze this conversation:\n\n{sanitized_text}"
+                    ),
                 ]
                 response = await model.ainvoke(messages)
-                content = response.content if isinstance(response.content, str) else str(response.content)
+                content = (
+                    response.content
+                    if isinstance(response.content, str)
+                    else str(response.content)
+                )
 
                 # Parse JSON response
-                json_match = re.search(r'\{[^}]+\}', content)
+                json_match = re.search(r"\{[^}]+\}", content)
                 if json_match:
                     parsed = json.loads(json_match.group())
                     llm_stage = parsed.get("suggested_stage")
@@ -136,13 +148,17 @@ def create_stage_detector_node(
 
         elapsed_ms = round((time.perf_counter() - start) * 1000, 1)
 
-        detail = f"No stage change suggested" if not suggested_stage else f"Suggested {suggested_stage} via {source}"
+        detail = (
+            "No stage change suggested"
+            if not suggested_stage
+            else f"Suggested {suggested_stage} via {source}"
+        )
         log_entry: StepLog = {
             "step": "stage_detector",
             "status": "completed",
             "latency_ms": elapsed_ms,
             "tokens": 0,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "detail": detail,
         }
 

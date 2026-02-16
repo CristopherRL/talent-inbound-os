@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/api";
+import Navbar from "@/components/ui/Navbar";
 
 const SOURCES = [
   { value: "LINKEDIN", label: "LinkedIn" },
@@ -57,25 +58,7 @@ export default function IngestPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold text-gray-900">New Offer</h1>
-          <div className="flex items-center gap-4">
-            <a
-              href="/dashboard"
-              className="text-sm text-blue-600 hover:text-blue-500"
-            >
-              Dashboard
-            </a>
-            <a
-              href="/profile"
-              className="text-sm text-blue-600 hover:text-blue-500"
-            >
-              Profile
-            </a>
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white rounded-lg shadow p-6">

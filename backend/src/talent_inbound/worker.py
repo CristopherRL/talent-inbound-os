@@ -14,7 +14,12 @@ async def process_pipeline(ctx: dict, interaction_id: str) -> None:
     The use case handles: loading the interaction, running the LangGraph
     pipeline, emitting SSE events, and updating the opportunity.
     """
-    from talent_inbound.container import Container
+    from talent_inbound.modules.ingestion.infrastructure.repositories import (
+        SqlAlchemyInteractionRepository,
+    )
+    from talent_inbound.modules.opportunities.infrastructure.repositories import (
+        SqlAlchemyOpportunityRepository,
+    )
     from talent_inbound.modules.pipeline.application.process_pipeline import (
         ProcessPipeline,
     )
@@ -27,12 +32,6 @@ async def process_pipeline(ctx: dict, interaction_id: str) -> None:
         _current_session,
         create_engine,
         create_session_factory,
-    )
-    from talent_inbound.modules.ingestion.infrastructure.repositories import (
-        SqlAlchemyInteractionRepository,
-    )
-    from talent_inbound.modules.opportunities.infrastructure.repositories import (
-        SqlAlchemyOpportunityRepository,
     )
 
     settings = ctx["settings"]

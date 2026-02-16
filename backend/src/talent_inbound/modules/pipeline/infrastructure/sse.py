@@ -2,8 +2,7 @@
 
 import asyncio
 import json
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
 
 
 class SSEEmitter:
@@ -37,7 +36,7 @@ class SSEEmitter:
                 "agent": agent,
                 "status": status,
                 "result_summary": result_summary,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         }
         await queue.put(event)
@@ -55,7 +54,7 @@ class SSEEmitter:
             "data": {
                 "opportunity_id": opportunity_id,
                 "final_status": final_status,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         }
         await queue.put(event)

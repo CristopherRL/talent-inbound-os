@@ -2,11 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiPost } from "@/lib/api";
-import {
-  SCORING_THRESHOLD_HIGH,
-  SCORING_THRESHOLD_MEDIUM,
-} from "@/config/scoring";
+import Navbar from "@/components/ui/Navbar";
 import OpportunityCard, {
   type OpportunityCardData,
 } from "@/components/opportunity/OpportunityCard";
@@ -85,15 +81,6 @@ export default function DashboardPage() {
     load();
   }, [stageFilter, archivedFilter]);
 
-  async function handleLogout() {
-    try {
-      await apiPost("/auth/logout");
-    } catch {
-      // Redirect even if call fails
-    }
-    router.push("/login");
-  }
-
   function toCardData(opp: OpportunityListItem): OpportunityCardData {
     return {
       ...opp,
@@ -103,27 +90,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold text-gray-900">
-            Talent Inbound OS
-          </h1>
-          <div className="flex items-center gap-4">
-            <a
-              href="/profile"
-              className="text-sm text-blue-600 hover:text-blue-500"
-            >
-              Profile
-            </a>
-            <button
-              onClick={handleLogout}
-              className="text-sm text-gray-600 hover:text-gray-900 px-3 py-1 rounded border border-gray-300 hover:border-gray-400"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Action bar */}

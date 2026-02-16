@@ -23,9 +23,7 @@ class SqlAlchemyProfileRepository(ProfileRepository):
         await self._session.refresh(model)
         return model.to_domain()
 
-    async def find_by_candidate_id(
-        self, candidate_id: str
-    ) -> CandidateProfile | None:
+    async def find_by_candidate_id(self, candidate_id: str) -> CandidateProfile | None:
         stmt = select(CandidateProfileModel).where(
             CandidateProfileModel.candidate_id == candidate_id
         )

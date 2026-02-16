@@ -60,7 +60,9 @@ class GenerateDraft:
             "role_title": opp.role_title,
             "salary_range": opp.salary_range,
             "tech_stack": opp.tech_stack or [],
-            "work_model": opp.work_model.value if hasattr(opp.work_model, "value") else opp.work_model,
+            "work_model": opp.work_model.value
+            if hasattr(opp.work_model, "value")
+            else opp.work_model,
             "recruiter_name": opp.recruiter_name,
             "recruiter_company": opp.recruiter_company,
             "missing_fields": opp.missing_fields or [],
@@ -70,7 +72,9 @@ class GenerateDraft:
         profile = None
         if self._profile_repo:
             try:
-                profile = await self._profile_repo.find_by_candidate_id(opp.candidate_id)
+                profile = await self._profile_repo.find_by_candidate_id(
+                    opp.candidate_id
+                )
             except Exception:
                 pass
 
@@ -97,7 +101,7 @@ class GenerateDraft:
             logger.warning(
                 "additional_context_ignored",
                 reason="Mock mode cannot process additional instructions. "
-                       "Configure an LLM API key to enable this feature.",
+                "Configure an LLM API key to enable this feature.",
                 opportunity_id=opportunity_id,
             )
 

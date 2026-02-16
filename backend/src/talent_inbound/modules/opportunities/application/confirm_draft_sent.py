@@ -2,7 +2,7 @@
 a CANDIDATE_RESPONSE interaction to record it in the timeline.
 Auto-advances DISCOVERY → ENGAGING on first send."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,6 +33,15 @@ class ConfirmDraftSent:
     ) -> dict:
         session: AsyncSession = get_current_session()
 
+        # Verify opportunity ownership
+        opp_stmt = select(OpportunityModel).where(
+            OpportunityModel.id == opportunity_id
+        )
+        opp_result = await session.execute(opp_stmt)
+        opp_check = opp_result.scalar_one_or_none()
+        if opp_check is None or opp_check.candidate_id != candidate_id:
+            raise ValueError("Opportunity not found")
+
         # Load draft
         stmt = select(DraftResponseModel).where(
             DraftResponseModel.id == draft_id,
@@ -49,17 +58,17 @@ class ConfirmDraftSent:
             raise ValueError("Draft has already been confirmed as sent")
 
         # Mark draft as sent
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         draft.is_sent = True
         draft.sent_at = now
 
         # Create CANDIDATE_RESPONSE interaction
-        import uuid
         import hashlib
+        import uuid
 
         sent_text = draft.edited_content or draft.generated_content
         content_hash = hashlib.sha256(
-            f"{sent_text}|CANDIDATE_RESPONSE".encode("utf-8")
+            f"{sent_text}|CANDIDATE_RESPONSE".encode()
         ).hexdigest()
 
         interaction = InteractionModel(
@@ -77,9 +86,7 @@ class ConfirmDraftSent:
         session.add(interaction)
 
         # Update opportunity.last_interaction_at + auto-advance stage
-        opp_stmt = select(OpportunityModel).where(
-            OpportunityModel.id == opportunity_id
-        )
+        opp_stmt = select(OpportunityModel).where(OpportunityModel.id == opportunity_id)
         opp_result = await session.execute(opp_stmt)
         opp = opp_result.scalar_one_or_none()
         if opp:

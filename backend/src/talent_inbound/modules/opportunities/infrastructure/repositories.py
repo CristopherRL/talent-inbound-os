@@ -13,6 +13,7 @@ def _enum_value(val) -> str | None:
         return None
     return val.value if isinstance(val, StrEnum) else str(val)
 
+
 from talent_inbound.modules.opportunities.domain.entities import (
     Opportunity,
     StageTransition,
@@ -69,9 +70,7 @@ class SqlAlchemyOpportunityRepository(OpportunityRepository):
         return [m.to_domain() for m in models]
 
     async def update(self, opportunity: Opportunity) -> Opportunity:
-        stmt = select(OpportunityModel).where(
-            OpportunityModel.id == opportunity.id
-        )
+        stmt = select(OpportunityModel).where(OpportunityModel.id == opportunity.id)
         result = await self._session.execute(stmt)
         model = result.scalar_one_or_none()
         if model is None:
@@ -97,6 +96,17 @@ class SqlAlchemyOpportunityRepository(OpportunityRepository):
         await self._session.flush()
         await self._session.refresh(model)
         return model.to_domain()
+
+    async def delete(self, opportunity_id: str) -> None:
+        stmt = select(OpportunityModel).where(
+            OpportunityModel.id == opportunity_id
+        )
+        result = await self._session.execute(stmt)
+        model = result.scalar_one_or_none()
+        if model is None:
+            raise ValueError(f"Opportunity not found: {opportunity_id}")
+        await self._session.delete(model)
+        await self._session.flush()
 
     async def save_transition(self, transition: StageTransition) -> StageTransition:
         model = StageTransitionModel.from_domain(transition)

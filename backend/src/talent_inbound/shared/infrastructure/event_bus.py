@@ -15,9 +15,7 @@ class InProcessEventBus:
     def __init__(self) -> None:
         self._handlers: dict[type[DomainEvent], list[EventHandler]] = defaultdict(list)
 
-    def subscribe(
-        self, event_type: type[DomainEvent], handler: EventHandler
-    ) -> None:
+    def subscribe(self, event_type: type[DomainEvent], handler: EventHandler) -> None:
         self._handlers[event_type].append(handler)
 
     async def publish(self, event: DomainEvent) -> None:

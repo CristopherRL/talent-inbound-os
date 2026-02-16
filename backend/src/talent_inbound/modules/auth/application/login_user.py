@@ -1,7 +1,7 @@
 """LoginUser use case — authenticates credentials and generates JWT tokens."""
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from jose import jwt
 
@@ -60,7 +60,7 @@ class LoginUser:
         if not user.is_active:
             raise InactiveUserError()
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         access_token = jwt.encode(
             {

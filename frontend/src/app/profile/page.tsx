@@ -1,8 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { apiGet, apiPut, apiUpload, ApiError } from "@/lib/api";
+import Navbar from "@/components/ui/Navbar";
 import ProfileForm from "@/components/profile/ProfileForm";
 import CVUpload from "@/components/profile/CVUpload";
 
@@ -22,7 +22,6 @@ interface ProfileData {
 }
 
 export default function ProfilePage() {
-  const router = useRouter();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -82,41 +81,20 @@ export default function ProfilePage() {
     }
   }
 
-  async function handleLogout() {
-    try {
-      await import("@/lib/api").then((m) => m.apiPost("/auth/logout"));
-    } catch {
-      // Clear local state even on failure
-    }
-    router.push("/login");
-  }
-
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-gray-500">Loading profile...</p>
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex items-center justify-center py-20">
+          <p className="text-gray-500">Loading profile...</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold text-gray-900">Talent Inbound OS</h1>
-          <div className="flex items-center gap-4">
-            <a href="/dashboard" className="text-sm text-blue-600 hover:text-blue-500">
-              Dashboard
-            </a>
-            <button
-              onClick={handleLogout}
-              className="text-sm text-gray-600 hover:text-gray-900 px-3 py-1 rounded border border-gray-300 hover:border-gray-400"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
       <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Toast notification */}

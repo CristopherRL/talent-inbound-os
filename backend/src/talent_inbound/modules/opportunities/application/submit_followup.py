@@ -3,7 +3,7 @@ opportunity. No stage change — the pipeline's stage detector will suggest one.
 
 import hashlib
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,10 +13,10 @@ from talent_inbound.modules.opportunities.infrastructure.orm_models import (
     OpportunityModel,
 )
 from talent_inbound.shared.domain.enums import (
+    TERMINAL_STAGES,
     InteractionType,
     OpportunityStage,
     ProcessingStatus,
-    TERMINAL_STAGES,
 )
 from talent_inbound.shared.infrastructure.database import get_current_session
 
@@ -53,12 +53,10 @@ class SubmitFollowUp:
                 f"Cannot add follow-up to an opportunity in terminal stage: {opp.stage}"
             )
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Create FOLLOW_UP interaction
-        content_hash = hashlib.sha256(
-            f"{raw_content}|{source}".encode("utf-8")
-        ).hexdigest()
+        content_hash = hashlib.sha256(f"{raw_content}|{source}".encode()).hexdigest()
 
         interaction = InteractionModel(
             id=str(uuid.uuid4()),

@@ -1,11 +1,10 @@
 """Opportunities API router — list, detail, stage change, archive, stale."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from dependency_injector.wiring import Provide, inject
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from talent_inbound.container import Container
 from talent_inbound.modules.auth.domain.entities import User
@@ -21,6 +20,10 @@ from talent_inbound.modules.opportunities.application.change_stage import (
 from talent_inbound.modules.opportunities.application.confirm_draft_sent import (
     ConfirmDraftSent,
 )
+from talent_inbound.modules.opportunities.application.edit_draft import EditDraft
+from talent_inbound.modules.opportunities.application.generate_draft import (
+    GenerateDraft,
+)
 from talent_inbound.modules.opportunities.application.get_stale import (
     GetStaleOpportunities,
 )
@@ -32,10 +35,6 @@ from talent_inbound.modules.opportunities.domain.exceptions import (
 )
 from talent_inbound.modules.opportunities.domain.repositories import (
     OpportunityRepository,
-)
-from talent_inbound.modules.opportunities.application.edit_draft import EditDraft
-from talent_inbound.modules.opportunities.application.generate_draft import (
-    GenerateDraft,
 )
 from talent_inbound.modules.opportunities.presentation.schemas import (
     AcceptStageSuggestionResponse,
@@ -68,9 +67,13 @@ def _opp_to_list_item(opp) -> OpportunityListItem:
         role_title=opp.role_title,
         salary_range=opp.salary_range,
         tech_stack=opp.tech_stack,
-        work_model=opp.work_model.value if hasattr(opp.work_model, "value") else opp.work_model,
+        work_model=opp.work_model.value
+        if hasattr(opp.work_model, "value")
+        else opp.work_model,
         recruiter_name=opp.recruiter_name,
-        recruiter_type=opp.recruiter_type.value if hasattr(opp.recruiter_type, "value") else opp.recruiter_type,
+        recruiter_type=opp.recruiter_type.value
+        if hasattr(opp.recruiter_type, "value")
+        else opp.recruiter_type,
         match_score=opp.match_score,
         missing_fields=opp.missing_fields,
         stage=opp.stage.value if hasattr(opp.stage, "value") else opp.stage,
@@ -105,12 +108,10 @@ async def list_opportunities(
 @inject
 async def get_stale_opportunities(
     current_user: User = Depends(get_current_user),
-    get_stale_uc: GetStaleOpportunities = Depends(
-        Provide[Container.get_stale_uc]
-    ),
+    get_stale_uc: GetStaleOpportunities = Depends(Provide[Container.get_stale_uc]),
 ) -> list[StaleOpportunityItem]:
     stale = await get_stale_uc.execute(current_user.id)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return [
         StaleOpportunityItem(
             id=opp.id,
@@ -153,7 +154,10 @@ async def get_opportunity_detail(
     session = get_current_session()
     stmt = (
         select(InteractionModel)
-        .where(InteractionModel.opportunity_id == opportunity_id)
+        .where(
+            InteractionModel.opportunity_id == opportunity_id,
+            InteractionModel.candidate_id == current_user.id,
+        )
         .order_by(InteractionModel.created_at.asc())
     )
     result = await session.execute(stmt)
@@ -173,9 +177,13 @@ async def get_opportunity_detail(
     stage_history = [
         StageTransitionItem(
             id=t.id,
-            from_stage=t.from_stage.value if hasattr(t.from_stage, "value") else t.from_stage,
+            from_stage=t.from_stage.value
+            if hasattr(t.from_stage, "value")
+            else t.from_stage,
             to_stage=t.to_stage.value if hasattr(t.to_stage, "value") else t.to_stage,
-            triggered_by=t.triggered_by.value if hasattr(t.triggered_by, "value") else t.triggered_by,
+            triggered_by=t.triggered_by.value
+            if hasattr(t.triggered_by, "value")
+            else t.triggered_by,
             is_unusual=t.is_unusual,
             note=t.note,
             created_at=t.created_at,
@@ -217,15 +225,21 @@ async def get_opportunity_detail(
         role_title=opp.role_title,
         salary_range=opp.salary_range,
         tech_stack=opp.tech_stack,
-        work_model=opp.work_model.value if hasattr(opp.work_model, "value") else opp.work_model,
+        work_model=opp.work_model.value
+        if hasattr(opp.work_model, "value")
+        else opp.work_model,
         recruiter_name=opp.recruiter_name,
-        recruiter_type=opp.recruiter_type.value if hasattr(opp.recruiter_type, "value") else opp.recruiter_type,
+        recruiter_type=opp.recruiter_type.value
+        if hasattr(opp.recruiter_type, "value")
+        else opp.recruiter_type,
         recruiter_company=opp.recruiter_company,
         match_score=opp.match_score,
         match_reasoning=opp.match_reasoning,
         missing_fields=opp.missing_fields,
         stage=opp.stage.value if hasattr(opp.stage, "value") else opp.stage,
-        suggested_stage=opp.suggested_stage.value if hasattr(opp.suggested_stage, "value") and opp.suggested_stage else opp.suggested_stage,
+        suggested_stage=opp.suggested_stage.value
+        if hasattr(opp.suggested_stage, "value") and opp.suggested_stage
+        else opp.suggested_stage,
         suggested_stage_reason=opp.suggested_stage_reason,
         is_archived=opp.is_archived,
         interactions=interactions,
@@ -243,9 +257,7 @@ async def change_stage(
     opportunity_id: str,
     body: ChangeStageRequest,
     current_user: User = Depends(get_current_user),
-    change_stage_uc: ChangeStage = Depends(
-        Provide[Container.change_stage_uc]
-    ),
+    change_stage_uc: ChangeStage = Depends(Provide[Container.change_stage_uc]),
     opportunity_repo: OpportunityRepository = Depends(
         Provide[Container.opportunity_repo]
     ),
@@ -270,13 +282,21 @@ async def change_stage(
 
     return ChangeStageResponse(
         id=opportunity_id,
-        stage=transition.to_stage.value if hasattr(transition.to_stage, "value") else transition.to_stage,
+        stage=transition.to_stage.value
+        if hasattr(transition.to_stage, "value")
+        else transition.to_stage,
         is_unusual=transition.is_unusual,
         transition=StageTransitionItem(
             id=transition.id,
-            from_stage=transition.from_stage.value if hasattr(transition.from_stage, "value") else transition.from_stage,
-            to_stage=transition.to_stage.value if hasattr(transition.to_stage, "value") else transition.to_stage,
-            triggered_by=transition.triggered_by.value if hasattr(transition.triggered_by, "value") else transition.triggered_by,
+            from_stage=transition.from_stage.value
+            if hasattr(transition.from_stage, "value")
+            else transition.from_stage,
+            to_stage=transition.to_stage.value
+            if hasattr(transition.to_stage, "value")
+            else transition.to_stage,
+            triggered_by=transition.triggered_by.value
+            if hasattr(transition.triggered_by, "value")
+            else transition.triggered_by,
             is_unusual=transition.is_unusual,
             note=transition.note,
             created_at=transition.created_at,
@@ -284,7 +304,10 @@ async def change_stage(
     )
 
 
-@router.post("/{opportunity_id}/accept-stage-suggestion", response_model=AcceptStageSuggestionResponse)
+@router.post(
+    "/{opportunity_id}/accept-stage-suggestion",
+    response_model=AcceptStageSuggestionResponse,
+)
 @inject
 async def accept_stage_suggestion(
     opportunity_id: str,
@@ -309,9 +332,15 @@ async def accept_stage_suggestion(
     if transition:
         transition_item = StageTransitionItem(
             id=transition.id,
-            from_stage=transition.from_stage.value if hasattr(transition.from_stage, "value") else transition.from_stage,
-            to_stage=transition.to_stage.value if hasattr(transition.to_stage, "value") else transition.to_stage,
-            triggered_by=transition.triggered_by.value if hasattr(transition.triggered_by, "value") else transition.triggered_by,
+            from_stage=transition.from_stage.value
+            if hasattr(transition.from_stage, "value")
+            else transition.from_stage,
+            to_stage=transition.to_stage.value
+            if hasattr(transition.to_stage, "value")
+            else transition.to_stage,
+            triggered_by=transition.triggered_by.value
+            if hasattr(transition.triggered_by, "value")
+            else transition.triggered_by,
             is_unusual=transition.is_unusual,
             note=transition.note,
             created_at=transition.created_at,
@@ -324,7 +353,10 @@ async def accept_stage_suggestion(
     )
 
 
-@router.post("/{opportunity_id}/dismiss-stage-suggestion", response_model=DismissStageSuggestionResponse)
+@router.post(
+    "/{opportunity_id}/dismiss-stage-suggestion",
+    response_model=DismissStageSuggestionResponse,
+)
 @inject
 async def dismiss_stage_suggestion(
     opportunity_id: str,
@@ -348,9 +380,7 @@ async def dismiss_stage_suggestion(
 async def archive_opportunity(
     opportunity_id: str,
     current_user: User = Depends(get_current_user),
-    archive_uc: ArchiveOpportunity = Depends(
-        Provide[Container.archive_uc]
-    ),
+    archive_uc: ArchiveOpportunity = Depends(Provide[Container.archive_uc]),
     opportunity_repo: OpportunityRepository = Depends(
         Provide[Container.opportunity_repo]
     ),
@@ -364,7 +394,9 @@ async def archive_opportunity(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    return ArchiveResponse(id=opportunity_id, is_archived=True, message="Opportunity archived")
+    return ArchiveResponse(
+        id=opportunity_id, is_archived=True, message="Opportunity archived"
+    )
 
 
 @router.post("/{opportunity_id}/unarchive", response_model=ArchiveResponse)
@@ -372,9 +404,7 @@ async def archive_opportunity(
 async def unarchive_opportunity(
     opportunity_id: str,
     current_user: User = Depends(get_current_user),
-    unarchive_uc: UnarchiveOpportunity = Depends(
-        Provide[Container.unarchive_uc]
-    ),
+    unarchive_uc: UnarchiveOpportunity = Depends(Provide[Container.unarchive_uc]),
     opportunity_repo: OpportunityRepository = Depends(
         Provide[Container.opportunity_repo]
     ),
@@ -384,7 +414,27 @@ async def unarchive_opportunity(
         raise HTTPException(status_code=404, detail="Opportunity not found")
 
     await unarchive_uc.execute(opportunity_id)
-    return ArchiveResponse(id=opportunity_id, is_archived=False, message="Opportunity unarchived")
+    return ArchiveResponse(
+        id=opportunity_id, is_archived=False, message="Opportunity unarchived"
+    )
+
+
+@router.delete("/{opportunity_id}", status_code=200)
+@inject
+async def delete_opportunity(
+    opportunity_id: str,
+    current_user: User = Depends(get_current_user),
+    opportunity_repo: OpportunityRepository = Depends(
+        Provide[Container.opportunity_repo]
+    ),
+):
+    """Permanently delete an opportunity and all related data. Irreversible."""
+    opp = await opportunity_repo.find_by_id(opportunity_id)
+    if opp is None or opp.candidate_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+
+    await opportunity_repo.delete(opportunity_id)
+    return {"id": opportunity_id, "message": "Opportunity permanently deleted"}
 
 
 @router.post(
@@ -397,9 +447,7 @@ async def generate_draft(
     opportunity_id: str,
     body: GenerateDraftRequest,
     current_user: User = Depends(get_current_user),
-    generate_draft_uc: GenerateDraft = Depends(
-        Provide[Container.generate_draft_uc]
-    ),
+    generate_draft_uc: GenerateDraft = Depends(Provide[Container.generate_draft_uc]),
     opportunity_repo: OpportunityRepository = Depends(
         Provide[Container.opportunity_repo]
     ),
@@ -431,9 +479,7 @@ async def edit_draft(
     draft_id: str,
     body: EditDraftRequest,
     current_user: User = Depends(get_current_user),
-    edit_draft_uc: EditDraft = Depends(
-        Provide[Container.edit_draft_uc]
-    ),
+    edit_draft_uc: EditDraft = Depends(Provide[Container.edit_draft_uc]),
     opportunity_repo: OpportunityRepository = Depends(
         Provide[Container.opportunity_repo]
     ),
@@ -501,9 +547,7 @@ async def confirm_draft_sent(
     opportunity_id: str,
     draft_id: str,
     current_user: User = Depends(get_current_user),
-    confirm_sent_uc: ConfirmDraftSent = Depends(
-        Provide[Container.confirm_sent_uc]
-    ),
+    confirm_sent_uc: ConfirmDraftSent = Depends(Provide[Container.confirm_sent_uc]),
     opportunity_repo: OpportunityRepository = Depends(
         Provide[Container.opportunity_repo]
     ),
@@ -534,9 +578,7 @@ async def submit_followup(
     opportunity_id: str,
     body: SubmitFollowUpRequest,
     current_user: User = Depends(get_current_user),
-    submit_followup_uc: SubmitFollowUp = Depends(
-        Provide[Container.submit_followup_uc]
-    ),
+    submit_followup_uc: SubmitFollowUp = Depends(Provide[Container.submit_followup_uc]),
     opportunity_repo: OpportunityRepository = Depends(
         Provide[Container.opportunity_repo]
     ),
@@ -556,6 +598,7 @@ async def submit_followup(
 
     # Run follow-up pipeline inline
     import structlog
+
     from talent_inbound.container import Container as C
     from talent_inbound.modules.pipeline.application.process_pipeline import (
         ProcessPipeline,
@@ -580,7 +623,9 @@ async def submit_followup(
         opp_repo = C.opportunity_repo()
         profile_repo = C.profile_repo()
         graph = build_followup_pipeline(
-            model_router, profile_repo=profile_repo, scoring_weights=scoring_weights,
+            model_router,
+            profile_repo=profile_repo,
+            scoring_weights=scoring_weights,
             opportunity_repo=opp_repo,
         )
         pipeline_uc = ProcessPipeline(

@@ -62,6 +62,15 @@ export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
   return handleResponse<T>(response);
 }
 
+export async function apiDelete<T>(path: string): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}/api/v1${path}`, {
+    method: "DELETE",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+  });
+  return handleResponse<T>(response);
+}
+
 export async function apiUpload<T>(path: string, file: File): Promise<T> {
   const formData = new FormData();
   formData.append("file", file);

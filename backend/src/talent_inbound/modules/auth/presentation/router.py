@@ -1,5 +1,7 @@
 """Auth API router — register, login, logout, refresh."""
 
+from datetime import UTC
+
 from dependency_injector.wiring import Provide, inject
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from jose import JWTError, jwt
@@ -31,7 +33,9 @@ from talent_inbound.modules.auth.presentation.schemas import (
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-def _set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
+def _set_auth_cookies(
+    response: Response, access_token: str, refresh_token: str
+) -> None:
     """Set JWT tokens as HTTP-only, secure cookies.
 
     HTTP-only means JavaScript cannot read these cookies (XSS protection).
@@ -57,7 +61,9 @@ def _set_auth_cookies(response: Response, access_token: str, refresh_token: str)
     )
 
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED
+)
 @inject
 async def register(
     body: RegisterRequest,
@@ -154,9 +160,9 @@ async def refresh(
             detail="User not found or inactive",
         )
 
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     new_access = jwt.encode(
         {
             "sub": user.id,

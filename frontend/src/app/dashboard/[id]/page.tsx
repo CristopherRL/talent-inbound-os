@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Navbar from "@/components/ui/Navbar";
 import DraftResponseCard from "@/components/opportunity/DraftResponseCard";
 import FollowUpForm from "@/components/opportunity/FollowUpForm";
 import MatchScoreCard from "@/components/opportunity/MatchScoreCard";
@@ -22,6 +23,7 @@ import {
   deleteDraft,
   confirmDraftSent,
   submitFollowUp,
+  deleteOpportunity,
   type OpportunityDetail,
 } from "@/hooks/use-opportunities";
 
@@ -150,6 +152,7 @@ export default function OpportunityDetailPage() {
   const [additionalContext, setAdditionalContext] = useState("");
   const [generating, setGenerating] = useState(false);
   const [suggestionModalOpen, setSuggestionModalOpen] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   // Track the suggestion we already showed a modal for, so we don't re-pop on every refresh
   const shownSuggestionRef = useRef<string | null>(null);
 
@@ -282,6 +285,16 @@ export default function OpportunityDetailPage() {
     await refreshAndCheckSuggestion();
   }
 
+  async function handleDeleteOpportunity() {
+    try {
+      await deleteOpportunity(id);
+      router.push("/dashboard");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Delete failed");
+      setShowDeleteConfirm(false);
+    }
+  }
+
   function buildTimeline(): TimelineEvent[] {
     if (!opp) return [];
     const events: TimelineEvent[] = [];
@@ -318,16 +331,20 @@ export default function OpportunityDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500">Loading...</p>
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex items-center justify-center py-20">
+          <p className="text-gray-500">Loading...</p>
+        </div>
       </div>
     );
   }
 
   if (error || !opp) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8">
-        <div className="max-w-3xl mx-auto">
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="max-w-3xl mx-auto px-4 py-8">
           <button onClick={() => router.back()} className="text-sm text-blue-600 mb-4">
             &larr; Back
           </button>
@@ -345,6 +362,7 @@ export default function OpportunityDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Navbar />
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Back + header */}
         <button
@@ -520,7 +538,39 @@ export default function OpportunityDetailPage() {
                 Unarchive
               </button>
             )}
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="text-sm text-red-600 hover:text-red-700 px-3 py-1.5 rounded border border-red-300 hover:border-red-400"
+            >
+              Delete
+            </button>
           </div>
+
+          {/* Delete confirmation dialog */}
+          {showDeleteConfirm && (
+            <div className="mt-3 rounded-md bg-red-50 border border-red-200 p-4">
+              <p className="text-sm font-medium text-red-800">
+                Permanently delete this opportunity?
+              </p>
+              <p className="text-sm text-red-700 mt-1">
+                This action is irreversible. All related interactions, drafts, and stage history will be deleted. If you just want to hide it, consider archiving instead.
+              </p>
+              <div className="flex gap-3 mt-3">
+                <button
+                  onClick={handleDeleteOpportunity}
+                  className="text-sm font-medium text-white bg-red-600 hover:bg-red-700 px-4 py-1.5 rounded"
+                >
+                  Yes, delete permanently
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="text-sm text-gray-700 hover:text-gray-900 px-4 py-1.5 rounded border border-gray-300"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Timeline */}

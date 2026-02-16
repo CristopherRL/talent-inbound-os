@@ -27,18 +27,19 @@ class SqlAlchemyInteractionRepository(InteractionRepository):
         model = result.scalar_one_or_none()
         return model.to_domain() if model else None
 
-    async def find_duplicate(self, content_hash: str) -> Interaction | None:
+    async def find_duplicate(
+        self, content_hash: str, candidate_id: str
+    ) -> Interaction | None:
         stmt = select(InteractionModel).where(
-            InteractionModel.content_hash == content_hash
+            InteractionModel.content_hash == content_hash,
+            InteractionModel.candidate_id == candidate_id,
         )
         result = await self._session.execute(stmt)
         model = result.scalar_one_or_none()
         return model.to_domain() if model else None
 
     async def update(self, interaction: Interaction) -> Interaction:
-        stmt = select(InteractionModel).where(
-            InteractionModel.id == interaction.id
-        )
+        stmt = select(InteractionModel).where(InteractionModel.id == interaction.id)
         result = await self._session.execute(stmt)
         model = result.scalar_one_or_none()
         if model is None:

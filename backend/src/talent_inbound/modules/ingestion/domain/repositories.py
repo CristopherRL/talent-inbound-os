@@ -17,8 +17,10 @@ class InteractionRepository(ABC):
         """Find interaction by ID."""
 
     @abstractmethod
-    async def find_duplicate(self, content_hash: str) -> Interaction | None:
-        """Find an existing interaction with the same content hash."""
+    async def find_duplicate(
+        self, content_hash: str, candidate_id: str
+    ) -> Interaction | None:
+        """Find an existing interaction with the same content hash for this candidate."""
 
     @abstractmethod
     async def update(self, interaction: Interaction) -> Interaction:

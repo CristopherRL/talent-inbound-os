@@ -1,6 +1,6 @@
 """GetStaleOpportunities use case — find opportunities at risk of ghosting."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from talent_inbound.modules.opportunities.domain.entities import Opportunity
 from talent_inbound.modules.opportunities.domain.repositories import (
@@ -28,5 +28,5 @@ class GetStaleOpportunities:
         if profile and profile.follow_up_days is not None:
             follow_up_days = profile.follow_up_days
 
-        cutoff = datetime.now(timezone.utc) - timedelta(days=follow_up_days)
+        cutoff = datetime.now(UTC) - timedelta(days=follow_up_days)
         return await self._opp_repo.list_stale(candidate_id, before=cutoff)

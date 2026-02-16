@@ -170,5 +170,7 @@ async def download_cv(
     return Response(
         content=content,
         media_type=media_types.get(ext, "application/octet-stream"),
-        headers={"Content-Disposition": f'attachment; filename="{profile.cv_filename}"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="{profile.cv_filename}"'
+        },
     )

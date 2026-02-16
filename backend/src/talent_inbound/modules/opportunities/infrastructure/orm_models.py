@@ -1,7 +1,7 @@
 """SQLAlchemy ORM models for Opportunity and StageTransition entities."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
 
 import sqlalchemy as sa
@@ -13,7 +13,6 @@ from talent_inbound.modules.opportunities.domain.entities import (
     Opportunity,
     StageTransition,
 )
-from talent_inbound.shared.domain.enums import ResponseType
 from talent_inbound.shared.infrastructure.database import Base
 
 
@@ -52,22 +51,20 @@ class OpportunityModel(Base):
     )
     suggested_stage: Mapped[str | None] = mapped_column(String(30), nullable=True)
     suggested_stage_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
-    is_archived: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False
-    )
+    is_archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     last_interaction_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, index=True
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
 
     def to_domain(self) -> Opportunity:
@@ -162,13 +159,13 @@ class StageTransitionModel(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
 
     def to_domain(self) -> StageTransition:
@@ -228,11 +225,11 @@ class DraftResponseModel(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )

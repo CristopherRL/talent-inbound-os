@@ -7,7 +7,7 @@ fields are missing (INCOMPLETE_INFO).
 
 import json
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -29,7 +29,11 @@ def _build_profile_context(profile) -> str:
         currency = profile.preferred_currency or "USD"
         parts.append(f"Minimum salary: {profile.min_salary} {currency}")
     if profile.work_model:
-        wm = profile.work_model.value if hasattr(profile.work_model, "value") else profile.work_model
+        wm = (
+            profile.work_model.value
+            if hasattr(profile.work_model, "value")
+            else profile.work_model
+        )
         parts.append(f"Work model preference: {wm}")
     if profile.preferred_locations:
         parts.append(f"Locations: {', '.join(profile.preferred_locations)}")
@@ -74,8 +78,12 @@ def _mock_score(profile, extracted_data: dict, weights: dict) -> dict:
         candidate_skills = {s.lower() for s in profile.skills}
         required_skills = {s.lower() for s in extracted_data["tech_stack"]}
         matched = candidate_skills & required_skills
-        skill_matches = [s for s in extracted_data["tech_stack"] if s.lower() in matched]
-        missing_skills = [s for s in extracted_data["tech_stack"] if s.lower() not in matched]
+        skill_matches = [
+            s for s in extracted_data["tech_stack"] if s.lower() in matched
+        ]
+        missing_skills = [
+            s for s in extracted_data["tech_stack"] if s.lower() not in matched
+        ]
 
         if required_skills:
             overlap_ratio = len(matched) / len(required_skills)
@@ -86,7 +94,11 @@ def _mock_score(profile, extracted_data: dict, weights: dict) -> dict:
 
     # Work model match
     if profile and profile.work_model and extracted_data.get("work_model"):
-        pref = profile.work_model.value if hasattr(profile.work_model, "value") else profile.work_model
+        pref = (
+            profile.work_model.value
+            if hasattr(profile.work_model, "value")
+            else profile.work_model
+        )
         if pref == extracted_data["work_model"]:
             score += weights["wm_match"]
             reasoning_parts.append(f"Work model: {pref} matches")
@@ -101,6 +113,7 @@ def _mock_score(profile, extracted_data: dict, weights: dict) -> dict:
     if profile and profile.min_salary and extracted_data.get("salary_range"):
         try:
             import re
+
             numbers = re.findall(r"\d[\d,]*", extracted_data["salary_range"])
             if numbers:
                 max_offered = int(numbers[-1].replace(",", ""))
@@ -119,7 +132,11 @@ def _mock_score(profile, extracted_data: dict, weights: dict) -> dict:
             pass
 
     score = max(0, min(100, score))
-    reasoning = ". ".join(reasoning_parts) if reasoning_parts else "Base score with limited data"
+    reasoning = (
+        ". ".join(reasoning_parts)
+        if reasoning_parts
+        else "Base score with limited data"
+    )
 
     return {
         "score": score,
@@ -147,7 +164,9 @@ def _parse_llm_json(raw: str) -> dict | None:
         return None
 
 
-async def _llm_score(model: BaseChatModel, profile, extracted_data: dict, weights: dict) -> dict:
+async def _llm_score(
+    model: BaseChatModel, profile, extracted_data: dict, weights: dict
+) -> dict:
     """Use LLM to score the opportunity against the profile."""
     import structlog
 
@@ -164,7 +183,11 @@ async def _llm_score(model: BaseChatModel, profile, extracted_data: dict, weight
     content = response.content
     # Handle list-type content blocks (Anthropic API)
     if isinstance(content, list):
-        text_parts = [b["text"] for b in content if isinstance(b, dict) and b.get("type") == "text"]
+        text_parts = [
+            b["text"]
+            for b in content
+            if isinstance(b, dict) and b.get("type") == "text"
+        ]
         content = " ".join(text_parts) if text_parts else ""
     if isinstance(content, str):
         parsed = _parse_llm_json(content)
@@ -223,7 +246,7 @@ def create_analyst_node(
                 "status": "skipped",
                 "latency_ms": elapsed_ms,
                 "tokens": 0,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "detail": f"Skipped: missing critical fields {missing}",
             }
             return {
@@ -258,7 +281,7 @@ def create_analyst_node(
             "status": "completed",
             "latency_ms": elapsed_ms,
             "tokens": 0,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "detail": f"Score: {result['score']}/100 via {source}. {result['reasoning']}",
         }
 

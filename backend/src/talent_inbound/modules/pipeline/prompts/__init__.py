@@ -21,4 +21,8 @@ def load_prompt(name: str) -> str:
 def load_known_techs() -> list[str]:
     """Load the known technologies list (one per line)."""
     path = _PROMPTS_DIR / "known_techs.txt"
-    return [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        line.strip()
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]

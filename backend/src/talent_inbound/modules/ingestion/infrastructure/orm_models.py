@@ -1,7 +1,7 @@
 """SQLAlchemy ORM model for the Interaction entity."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
@@ -41,20 +41,20 @@ class InteractionModel(Base):
         String(20), nullable=False, default="PENDING"
     )
     classification: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    content_hash: Mapped[str] = mapped_column(
-        String(64), nullable=False, index=True
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    pipeline_log: Mapped[dict | None] = mapped_column(
+        JSONB, nullable=True, default=list
     )
-    pipeline_log: Mapped[dict | None] = mapped_column(JSONB, nullable=True, default=list)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
 
     def to_domain(self) -> Interaction:

@@ -7,11 +7,12 @@ for mock-first development and testing. Includes hallucination check.
 import json
 import re
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from talent_inbound.config import get_settings
 from talent_inbound.modules.pipeline.domain.state import (
     ExtractedData,
     PipelineState,
@@ -19,12 +20,8 @@ from talent_inbound.modules.pipeline.domain.state import (
 )
 from talent_inbound.modules.pipeline.prompts import load_known_techs, load_prompt
 
-_CRITICAL_FIELDS = ["salary_range", "tech_stack", "role_title"]
 
-
-def _hallucination_check(
-    extracted: ExtractedData, source_text: str
-) -> list[str]:
+def _hallucination_check(extracted: ExtractedData, source_text: str) -> list[str]:
     """Flag fields whose values don't appear in the source text."""
     warnings = []
     lower_source = source_text.lower()
@@ -103,7 +100,8 @@ def _mock_extract(text: str) -> ExtractedData:
         "missing_fields": [],
     }
 
-    missing = [f for f in _CRITICAL_FIELDS if not extracted.get(f)]
+    required = get_settings().extraction_required_fields
+    missing = [f for f in required if not extracted.get(f)]
     extracted["missing_fields"] = missing
 
     return extracted
@@ -139,12 +137,17 @@ async def _llm_extract(model: BaseChatModel, text: str) -> ExtractedData:
     content = response.content
     # Handle list-type content blocks (Anthropic API)
     if isinstance(content, list):
-        text_parts = [b["text"] for b in content if isinstance(b, dict) and b.get("type") == "text"]
+        text_parts = [
+            b["text"]
+            for b in content
+            if isinstance(b, dict) and b.get("type") == "text"
+        ]
         content = " ".join(text_parts) if text_parts else ""
     if isinstance(content, str):
         parsed = _parse_llm_json(content)
         if parsed:
-            missing = [f for f in _CRITICAL_FIELDS if not parsed.get(f)]
+            required = get_settings().extraction_required_fields
+            missing = [f for f in required if not parsed.get(f)]
             parsed["missing_fields"] = missing
             return ExtractedData(**parsed)
         structlog.get_logger().warning(
@@ -186,7 +189,7 @@ def create_extractor_node(model: BaseChatModel | None = None):
             "status": "completed",
             "latency_ms": elapsed_ms,
             "tokens": 0,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "detail": " | ".join(detail_parts),
         }
 

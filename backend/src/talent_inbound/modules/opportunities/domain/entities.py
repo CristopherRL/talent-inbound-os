@@ -1,15 +1,15 @@
 """Opportunity domain entity for the opportunities module."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import Field
 
 from talent_inbound.shared.domain.base_entity import AggregateRoot, Entity, _utcnow
 from talent_inbound.shared.domain.enums import (
-    OpportunityStage,
-    RecruiterType,
     STAGE_FLOW,
     TERMINAL_STAGES,
+    OpportunityStage,
+    RecruiterType,
     TransitionTrigger,
     WorkModel,
 )
@@ -120,5 +120,5 @@ class Opportunity(AggregateRoot):
 
     def record_interaction(self) -> None:
         """Update last_interaction_at timestamp."""
-        self.last_interaction_at = datetime.now(timezone.utc)
+        self.last_interaction_at = datetime.now(UTC)
         self.touch()

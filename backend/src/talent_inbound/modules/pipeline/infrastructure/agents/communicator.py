@@ -6,7 +6,7 @@ REQUEST_INFO, EXPRESS_INTEREST, DECLINE.
 """
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -68,7 +68,11 @@ def _mock_draft(
 
     if response_type == "REQUEST_INFO":
         missing = extracted_data.get("missing_fields", [])
-        missing_text = ", ".join(missing) if missing else "salary range, team size, and project details"
+        missing_text = (
+            ", ".join(missing)
+            if missing
+            else "salary range, team size, and project details"
+        )
         return (
             f"{greeting}\n\n"
             f"Thank you for reaching out about the {role} position at {company}. "
@@ -83,9 +87,7 @@ def _mock_draft(
         stack_mention = ""
         if stack:
             overlap = stack[:3]
-            stack_mention = (
-                f" My experience with {', '.join(overlap)} aligns well with what you're looking for."
-            )
+            stack_mention = f" My experience with {', '.join(overlap)} aligns well with what you're looking for."
         return (
             f"{greeting}\n\n"
             f"Thank you for reaching out about the {role} opportunity at {company}. "
@@ -184,7 +186,7 @@ def create_communicator_node(
             "status": "completed",
             "latency_ms": elapsed_ms,
             "tokens": 0,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "detail": f"Draft generated ({response_type}) via {source}",
         }
 
@@ -209,5 +211,7 @@ async def generate_draft_standalone(
     Used by the GenerateDraft use case for on-demand generation.
     """
     if model is not None:
-        return await _llm_draft(model, response_type, extracted_data, profile, additional_context)
+        return await _llm_draft(
+            model, response_type, extracted_data, profile, additional_context
+        )
     return _mock_draft(response_type, extracted_data, profile, additional_context)

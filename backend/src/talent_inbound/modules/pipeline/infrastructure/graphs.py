@@ -68,8 +68,12 @@ def build_main_pipeline(
     gatekeeper_model = model_router.get_model("gatekeeper") if model_router else None
     extractor_model = model_router.get_model("extractor") if model_router else None
     analyst_model = model_router.get_model("analyst") if model_router else None
-    communicator_model = model_router.get_model("communicator") if model_router else None
-    stage_detector_model = model_router.get_model("stage_detector") if model_router else None
+    communicator_model = (
+        model_router.get_model("communicator") if model_router else None
+    )
+    stage_detector_model = (
+        model_router.get_model("stage_detector") if model_router else None
+    )
 
     graph = StateGraph(PipelineState)
 
@@ -133,8 +137,12 @@ def build_followup_pipeline(
     """
     extractor_model = model_router.get_model("extractor") if model_router else None
     analyst_model = model_router.get_model("analyst") if model_router else None
-    communicator_model = model_router.get_model("communicator") if model_router else None
-    stage_detector_model = model_router.get_model("stage_detector") if model_router else None
+    communicator_model = (
+        model_router.get_model("communicator") if model_router else None
+    )
+    stage_detector_model = (
+        model_router.get_model("stage_detector") if model_router else None
+    )
 
     graph = StateGraph(PipelineState)
 

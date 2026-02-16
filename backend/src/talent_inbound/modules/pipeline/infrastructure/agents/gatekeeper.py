@@ -6,7 +6,7 @@ for mock-first development and testing.
 
 import json
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -16,13 +16,36 @@ from talent_inbound.modules.pipeline.prompts import load_prompt
 
 # Keywords for the mock/heuristic classifier
 _OFFER_KEYWORDS = [
-    "role", "position", "opportunity", "hiring", "engineer", "developer",
-    "salary", "remote", "onsite", "hybrid", "stack", "looking for",
-    "team", "company", "client", "recruiter", "vacancy", "apply",
+    "role",
+    "position",
+    "opportunity",
+    "hiring",
+    "engineer",
+    "developer",
+    "salary",
+    "remote",
+    "onsite",
+    "hybrid",
+    "stack",
+    "looking for",
+    "team",
+    "company",
+    "client",
+    "recruiter",
+    "vacancy",
+    "apply",
 ]
 _SPAM_KEYWORDS = [
-    "click here", "unsubscribe", "free", "winner", "prize", "bitcoin",
-    "crypto", "investment", "guaranteed", "limited time",
+    "click here",
+    "unsubscribe",
+    "free",
+    "winner",
+    "prize",
+    "bitcoin",
+    "crypto",
+    "investment",
+    "guaranteed",
+    "limited time",
 ]
 
 
@@ -58,9 +81,7 @@ def _extract_json(text: str) -> dict | None:
         return None
 
 
-async def _llm_classify(
-    model: BaseChatModel, text: str
-) -> tuple[str, float]:
+async def _llm_classify(model: BaseChatModel, text: str) -> tuple[str, float]:
     """Use LLM to classify the message."""
     system_prompt = load_prompt("gatekeeper")
     messages = [
@@ -75,6 +96,7 @@ async def _llm_classify(
             return parsed["classification"], parsed.get("confidence", 0.8)
         # Fallback: if LLM returned text but not valid JSON, use mock classifier
         import structlog
+
         structlog.get_logger().warning(
             "gatekeeper_llm_json_parse_failed",
             content_preview=content[:200],
@@ -105,7 +127,7 @@ def create_gatekeeper_node(model: BaseChatModel | None = None):
             "status": "completed",
             "latency_ms": elapsed_ms,
             "tokens": 0,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "detail": f"{classification} ({confidence:.0%}) via {source}",
         }
 

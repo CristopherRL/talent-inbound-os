@@ -13,11 +13,13 @@ class OpportunityStage(StrEnum):
     GHOSTED = "GHOSTED"
 
 
-TERMINAL_STAGES = frozenset({
-    OpportunityStage.OFFER,
-    OpportunityStage.REJECTED,
-    OpportunityStage.GHOSTED,
-})
+TERMINAL_STAGES = frozenset(
+    {
+        OpportunityStage.OFFER,
+        OpportunityStage.REJECTED,
+        OpportunityStage.GHOSTED,
+    }
+)
 
 STAGE_FLOW = [
     OpportunityStage.DISCOVERY,

@@ -68,8 +68,10 @@ class SubmitMessage:
             source=source,
         )
 
-        # Check for duplicates
-        existing = await self._interaction_repo.find_duplicate(interaction.content_hash)
+        # Check for duplicates (scoped to this candidate)
+        existing = await self._interaction_repo.find_duplicate(
+            interaction.content_hash, command.candidate_id
+        )
         if existing and existing.opportunity_id:
             raise DuplicateInteractionError(existing.opportunity_id)
 

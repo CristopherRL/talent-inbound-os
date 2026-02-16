@@ -57,7 +57,10 @@ class ProcessPipeline:
 
         # For follow-ups, build combined text from all recruiter messages
         raw_input = interaction.raw_content
-        if interaction.interaction_type == InteractionType.FOLLOW_UP.value and opportunity_id:
+        if (
+            interaction.interaction_type == InteractionType.FOLLOW_UP.value
+            and opportunity_id
+        ):
             raw_input = await self._build_combined_text(opportunity_id)
 
         # Build initial state
@@ -97,20 +100,37 @@ class ProcessPipeline:
             if opportunity_id:
                 opportunity = await self._opportunity_repo.find_by_id(opportunity_id)
                 if opportunity:
-                    final_stage = self._determine_stage(result)
                     self._apply_extracted_data(opportunity, result)
                     self._apply_scoring(opportunity, result)
                     self._apply_stage_suggestion(opportunity, result)
                     await self._save_draft(opportunity_id, result)
-                    opportunity.change_stage(
-                        final_stage,
-                        triggered_by=TransitionTrigger.SYSTEM,
-                        note=f"Pipeline completed: {classification_str}",
+
+                    # Only force a stage change on INITIAL processing
+                    # For follow-ups, preserve the current stage — the
+                    # Stage Detector provides suggestions via the suggestion
+                    # system instead.
+                    is_followup = (
+                        interaction.interaction_type
+                        == InteractionType.FOLLOW_UP.value
                     )
+                    if not is_followup:
+                        final_stage = self._determine_stage(result)
+                        opportunity.change_stage(
+                            final_stage,
+                            triggered_by=TransitionTrigger.SYSTEM,
+                            note=f"Pipeline completed: {classification_str}",
+                        )
+
                     await self._opportunity_repo.update(opportunity)
 
+                    current_stage = opportunity.stage
+                    stage_value = (
+                        current_stage.value
+                        if hasattr(current_stage, "value")
+                        else str(current_stage)
+                    )
                     await self._sse.emit_complete(
-                        interaction_id, opportunity_id, final_stage.value
+                        interaction_id, opportunity_id, stage_value
                     )
                     log.info(
                         "pipeline_completed",
@@ -120,9 +140,7 @@ class ProcessPipeline:
                     return
 
             # No opportunity to update — just emit complete
-            await self._sse.emit_complete(
-                interaction_id, opportunity_id, "DISCOVERY"
-            )
+            await self._sse.emit_complete(interaction_id, opportunity_id, "DISCOVERY")
             log.info("pipeline_completed", classification=classification_str)
 
         except Exception:
@@ -132,9 +150,7 @@ class ProcessPipeline:
 
             # Update opportunity stage so it doesn't stay stuck
             if opportunity_id:
-                opportunity = await self._opportunity_repo.find_by_id(
-                    opportunity_id
-                )
+                opportunity = await self._opportunity_repo.find_by_id(opportunity_id)
                 if opportunity:
                     opportunity.change_stage(
                         OpportunityStage.DISCOVERY,
@@ -143,9 +159,7 @@ class ProcessPipeline:
                     )
                     await self._opportunity_repo.update(opportunity)
 
-            await self._sse.emit_complete(
-                interaction_id, opportunity_id, "DISCOVERY"
-            )
+            await self._sse.emit_complete(interaction_id, opportunity_id, "DISCOVERY")
 
     def _determine_stage(self, result: dict) -> OpportunityStage:
         """Determine the opportunity stage based on pipeline results."""
@@ -198,7 +212,9 @@ class ProcessPipeline:
         if suggested:
             try:
                 opportunity.suggested_stage = OpportunityStage(suggested)
-                opportunity.suggested_stage_reason = result.get("suggested_stage_reason")
+                opportunity.suggested_stage_reason = result.get(
+                    "suggested_stage_reason"
+                )
             except ValueError:
                 pass  # Invalid stage value — ignore
 
@@ -237,10 +253,12 @@ class ProcessPipeline:
             select(InteractionModel)
             .where(
                 InteractionModel.opportunity_id == opportunity_id,
-                InteractionModel.interaction_type.in_([
-                    InteractionType.INITIAL.value,
-                    InteractionType.FOLLOW_UP.value,
-                ]),
+                InteractionModel.interaction_type.in_(
+                    [
+                        InteractionType.INITIAL.value,
+                        InteractionType.FOLLOW_UP.value,
+                    ]
+                ),
             )
             .order_by(InteractionModel.created_at.asc())
         )

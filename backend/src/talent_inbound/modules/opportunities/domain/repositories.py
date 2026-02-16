@@ -40,6 +40,10 @@ class OpportunityRepository(ABC):
         """Update an existing opportunity."""
 
     @abstractmethod
+    async def delete(self, opportunity_id: str) -> None:
+        """Permanently delete an opportunity and all related data (cascading)."""
+
+    @abstractmethod
     async def save_transition(self, transition: StageTransition) -> StageTransition:
         """Persist a stage transition audit record."""
 

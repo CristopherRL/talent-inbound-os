@@ -42,7 +42,9 @@ async def submit_message(
     body: SubmitMessageRequest,
     current_user: User = Depends(get_current_user),
     submit_message_uc: SubmitMessage = Depends(Provide[Container.submit_message_uc]),
-    interaction_repo: InteractionRepository = Depends(Provide[Container.interaction_repo]),
+    interaction_repo: InteractionRepository = Depends(
+        Provide[Container.interaction_repo]
+    ),
     model_router: ModelRouter = Depends(Provide[Container.model_router]),
     sse_emitter: SSEEmitter = Depends(Provide[Container.sse_emitter]),
 ) -> SubmitMessageResponse:
@@ -66,6 +68,7 @@ async def submit_message(
     # Run pipeline inline (mock agents are instant; real LLM would use Arq worker)
     try:
         from talent_inbound.config import get_settings as _gs
+
         _settings = _gs()
         scoring_weights = {
             "base": _settings.scoring_base,
@@ -77,7 +80,12 @@ async def submit_message(
         }
         opp_repo = Container.opportunity_repo()
         profile_repo = Container.profile_repo()
-        graph = build_main_pipeline(model_router, profile_repo=profile_repo, scoring_weights=scoring_weights, opportunity_repo=opp_repo)
+        graph = build_main_pipeline(
+            model_router,
+            profile_repo=profile_repo,
+            scoring_weights=scoring_weights,
+            opportunity_repo=opp_repo,
+        )
         pipeline_uc = ProcessPipeline(
             interaction_repo=interaction_repo,
             opportunity_repo=opp_repo,
@@ -87,7 +95,9 @@ async def submit_message(
         await pipeline_uc.execute(result.interaction.id)
         # Re-fetch opportunity to get updated stage after pipeline
         updated_opp = await opp_repo.find_by_id(result.opportunity.id)
-        final_stage = updated_opp.stage.value if updated_opp else result.opportunity.stage.value
+        final_stage = (
+            updated_opp.stage.value if updated_opp else result.opportunity.stage.value
+        )
     except Exception:
         logger.exception("inline_pipeline_failed")
         final_stage = result.opportunity.stage.value

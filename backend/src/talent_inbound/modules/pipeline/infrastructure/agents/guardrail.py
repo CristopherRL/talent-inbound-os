@@ -6,7 +6,7 @@ but doesn't actually need a model. It's the first node in the pipeline.
 
 import re
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from talent_inbound.modules.pipeline.domain.state import PipelineState, StepLog
 
@@ -26,12 +26,16 @@ _PII_PATTERNS: list[tuple[str, re.Pattern]] = [
 
 # Prompt injection patterns
 _INJECTION_PATTERNS: list[re.Pattern] = [
-    re.compile(r"ignore\s+(?:all\s+)?(?:previous|above|prior)\s+instructions", re.IGNORECASE),
+    re.compile(
+        r"ignore\s+(?:all\s+)?(?:previous|above|prior)\s+instructions", re.IGNORECASE
+    ),
     re.compile(r"you\s+are\s+now\s+(?:a|an|the)", re.IGNORECASE),
     re.compile(r"system\s*:\s*", re.IGNORECASE),
     re.compile(r"<\|(?:im_start|system|endoftext)\|>", re.IGNORECASE),
     re.compile(r"(?:disregard|forget)\s+(?:everything|all)", re.IGNORECASE),
-    re.compile(r"do\s+not\s+follow\s+(?:your|the)\s+(?:rules|instructions)", re.IGNORECASE),
+    re.compile(
+        r"do\s+not\s+follow\s+(?:your|the)\s+(?:rules|instructions)", re.IGNORECASE
+    ),
 ]
 
 
@@ -70,7 +74,7 @@ def guardrail_node(state: PipelineState) -> dict:
         "status": "completed",
         "latency_ms": elapsed_ms,
         "tokens": 0,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "detail": detail,
     }
 

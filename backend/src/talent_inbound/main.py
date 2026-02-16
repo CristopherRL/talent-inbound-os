@@ -58,7 +58,9 @@ def create_app() -> FastAPI:
     async def _db_unavailable_response(
         request: Request, exc: Exception
     ) -> JSONResponse:
-        logger.error("database_connection_failed", error=type(exc).__name__, detail=str(exc))
+        logger.error(
+            "database_connection_failed", error=type(exc).__name__, detail=str(exc)
+        )
         return JSONResponse(
             status_code=503,
             content={

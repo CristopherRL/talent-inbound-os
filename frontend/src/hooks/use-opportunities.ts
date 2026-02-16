@@ -1,6 +1,6 @@
 "use client";
 
-import { apiGet, apiPost, apiPut, apiPatch, ApiError } from "@/lib/api";
+import { apiGet, apiPost, apiPut, apiPatch, apiDelete, ApiError } from "@/lib/api";
 
 export interface OpportunityListItem {
   id: string;
@@ -142,6 +142,12 @@ export async function unarchiveOpportunity(
   opportunityId: string,
 ): Promise<{ id: string; is_archived: boolean; message: string }> {
   return apiPost(`/opportunities/${opportunityId}/unarchive`);
+}
+
+export async function deleteOpportunity(
+  opportunityId: string,
+): Promise<{ id: string; message: string }> {
+  return apiDelete(`/opportunities/${opportunityId}`);
 }
 
 export interface DraftResponse {
