@@ -20,6 +20,8 @@ RUN pnpm build
 FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+# Next.js standalone must bind to 0.0.0.0 (not localhost) for Railway's proxy
+ENV HOSTNAME=0.0.0.0
 
 # Copy built output
 COPY --from=builder /app/.next/standalone ./
