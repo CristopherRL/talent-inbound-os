@@ -1,31 +1,24 @@
 /**
  * Next.js proxy for auth-based route protection (renamed from middleware in Next.js 16).
  *
- * This runs on the Node.js runtime BEFORE a page is rendered.
- * It checks for the access_token cookie:
- * - If the user is NOT authenticated and tries to access a protected page → redirect to /login
- * - If the user IS authenticated and tries to access /login or /register → redirect to /dashboard
+ * In local development (same domain), the middleware can read the access_token
+ * cookie and redirect unauthenticated users to /login.
  *
- * Note: This only checks cookie EXISTENCE, not validity. The backend validates
- * the actual token on every API call. This is a UX optimization to avoid
- * showing protected pages to users whose cookie has been cleared.
+ * In production (cross-domain: frontend and backend on different subdomains),
+ * the cookie is set on the backend domain and invisible to this middleware.
+ * In that case, we skip the cookie check and let each page handle auth
+ * via API calls — the backend validates the token on every request.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 
-const PROTECTED_PATHS = ["/dashboard", "/profile", "/ingest", "/chat"];
 const AUTH_PATHS = ["/login", "/register"];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasToken = request.cookies.has("access_token");
 
-  // Redirect unauthenticated users away from protected pages
-  if (!hasToken && PROTECTED_PATHS.some((p) => pathname.startsWith(p))) {
-    return NextResponse.redirect(new URL("/login", request.url));
-  }
-
-  // Redirect authenticated users away from auth pages
+  // Redirect authenticated users away from auth pages (works in local dev)
   if (hasToken && AUTH_PATHS.some((p) => pathname.startsWith(p))) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }

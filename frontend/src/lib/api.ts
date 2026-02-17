@@ -17,6 +17,11 @@ export class ApiError extends Error {
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
+    // Auto-redirect to login on 401 (session expired or not authenticated)
+    if (response.status === 401 && typeof window !== "undefined") {
+      window.location.href = "/login";
+      throw new ApiError(401, "Session expired");
+    }
     const body = await response.json().catch(() => ({ detail: response.statusText }));
     throw new ApiError(response.status, body.detail || response.statusText);
   }
