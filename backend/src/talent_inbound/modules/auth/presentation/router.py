@@ -39,14 +39,21 @@ def _set_auth_cookies(
     """Set JWT tokens as HTTP-only, secure cookies.
 
     HTTP-only means JavaScript cannot read these cookies (XSS protection).
-    SameSite=Lax prevents the cookies from being sent on cross-site requests (CSRF).
+    In production (HTTPS), uses secure=True and samesite="none" for
+    cross-origin cookies (backend and frontend on different domains).
+    In development, uses secure=False and samesite="lax".
     """
+    from talent_inbound.config import get_settings
+
+    is_prod = not get_settings().is_development
+    samesite_value: str = "none" if is_prod else "lax"
+
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
-        samesite="lax",
-        secure=False,  # Set True in production (requires HTTPS)
+        samesite=samesite_value,
+        secure=is_prod,
         max_age=30 * 60,  # 30 minutes
         path="/",
     )
@@ -54,8 +61,8 @@ def _set_auth_cookies(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        samesite="lax",
-        secure=False,
+        samesite=samesite_value,
+        secure=is_prod,
         max_age=7 * 24 * 60 * 60,  # 7 days
         path="/api/v1/auth/refresh",  # Only sent to refresh endpoint
     )
@@ -175,12 +182,13 @@ async def refresh(
         algorithm="HS256",
     )
 
+    is_prod = not settings.is_development
     response.set_cookie(
         key="access_token",
         value=new_access,
         httponly=True,
-        samesite="lax",
-        secure=False,
+        samesite="none" if is_prod else "lax",
+        secure=is_prod,
         max_age=settings.jwt_access_token_expire_minutes * 60,
         path="/",
     )

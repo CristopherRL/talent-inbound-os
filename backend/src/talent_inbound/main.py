@@ -34,13 +34,15 @@ def create_app() -> FastAPI:
     container = Container()
     app.container = container  # type: ignore[attr-defined]
 
-    # CORS — allow frontend origin (both localhost and 127.0.0.1 for Windows IPv6 compat)
+    # CORS — configurable via CORS_ORIGINS env var (comma-separated)
+    cors_origins = [
+        origin.strip()
+        for origin in settings.cors_origins.split(",")
+        if origin.strip()
+    ]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "http://localhost:3000",
-            "http://127.0.0.1:3000",
-        ],
+        allow_origins=cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

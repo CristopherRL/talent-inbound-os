@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     environment: str = "development"
     upload_dir: str = str(_BACKEND_DIR / "uploads")
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 
     # Ingestion
     max_message_length: int = 50000
