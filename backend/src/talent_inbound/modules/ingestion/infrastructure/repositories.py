@@ -30,12 +30,16 @@ class SqlAlchemyInteractionRepository(InteractionRepository):
     async def find_duplicate(
         self, content_hash: str, candidate_id: str
     ) -> Interaction | None:
-        stmt = select(InteractionModel).where(
-            InteractionModel.content_hash == content_hash,
-            InteractionModel.candidate_id == candidate_id,
+        stmt = (
+            select(InteractionModel)
+            .where(
+                InteractionModel.content_hash == content_hash,
+                InteractionModel.candidate_id == candidate_id,
+            )
+            .limit(1)
         )
         result = await self._session.execute(stmt)
-        model = result.scalar_one_or_none()
+        model = result.scalars().first()
         return model.to_domain() if model else None
 
     async def update(self, interaction: Interaction) -> Interaction:

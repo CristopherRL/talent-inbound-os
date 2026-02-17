@@ -50,6 +50,9 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"talent_inbound.modules.pipeline.prompts" = ["*.txt"]
+
 [tool.ruff]
 target-version = "py311"
 line-length = 88
