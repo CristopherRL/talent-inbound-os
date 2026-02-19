@@ -11,6 +11,7 @@
 ## Table of Contents
 
 - [Live Demo](#live-demo)
+- [Origin Story](#origin-story)
 - [Project Description](#project-description)
 - [Key Features](#key-features)
 - [Tech Stack](#tech-stack)
@@ -32,6 +33,20 @@
 | **Production** | [https://talent-inbound-os.up.railway.app](https://talent-inbound-os.up.railway.app) |
 
 > To explore the application, register a new account and complete your profile before submitting offers.
+
+---
+
+## Origin Story
+
+This project was born from a real, personal problem.
+
+As a Senior Engineer, I receive a constant stream of recruiter messages — through LinkedIn, email, and freelance platforms. Most are irrelevant or spam, but some are genuinely interesting opportunities. The problem? There are too many to review manually, and the good ones get buried under the noise.
+
+For a while, I tried using a **Gemini Gem** (custom GPT-like assistant) to help me evaluate offers. It worked... until it didn't. Google wiped my conversation history multiple times, and with it, all the context about which offers I was tracking, what stage each conversation was in, and what I had already responded. There was no persistence, no lifecycle tracking, and no structured data — just a chat window that could vanish at any moment.
+
+I needed something purpose-built: a system that would **persist** my data, **structure** the extraction, **score** offers against my preferences, **draft** professional responses, and **track** where each conversation stands — all without depending on a third-party chat history that could disappear.
+
+That frustration became the motivation for **Talent Inbound OS** — and the perfect challenge for a Master's Final Project in AI-assisted development.
 
 ---
 
