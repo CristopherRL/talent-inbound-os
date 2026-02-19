@@ -3,16 +3,18 @@
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { apiPost } from "@/lib/api";
+import { useProfileGate } from "@/hooks/use-profile-gate";
 
 const NAV_LINKS = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/ingest", label: "New Offer" },
-  { href: "/profile", label: "Profile" },
+  { href: "/dashboard", label: "Dashboard", requiresProfile: false },
+  { href: "/ingest", label: "New Offer", requiresProfile: true },
+  { href: "/profile", label: "Profile", requiresProfile: false },
 ];
 
 export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
+  const { profileComplete, tooltipMessage, loading } = useProfileGate();
 
   async function handleLogout() {
     try {
@@ -35,6 +37,20 @@ export default function Navbar() {
               const isActive =
                 pathname === link.href ||
                 (link.href !== "/dashboard" && pathname.startsWith(link.href));
+              const isDisabled = link.requiresProfile && !loading && !profileComplete;
+
+              if (isDisabled) {
+                return (
+                  <span
+                    key={link.href}
+                    title={tooltipMessage}
+                    className="text-sm font-medium px-2 py-1 rounded text-gray-400 cursor-not-allowed"
+                  >
+                    {link.label}
+                  </span>
+                );
+              }
+
               return (
                 <Link
                   key={link.href}

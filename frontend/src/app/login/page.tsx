@@ -20,10 +20,11 @@ export default function LoginPage() {
       await apiPost("/auth/login", { email, password });
       router.push("/dashboard");
     } catch (err: unknown) {
-      if (err instanceof Error) {
+      if (err instanceof Error && err.message) {
+        // Backend returns generic "Invalid email or password" (no user enumeration)
         setError(err.message);
       } else {
-        setError("Login failed. Please try again.");
+        setError("Unable to sign in. Please check your credentials and try again.");
       }
     } finally {
       setLoading(false);

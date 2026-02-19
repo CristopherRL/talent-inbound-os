@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/api";
 import Navbar from "@/components/ui/Navbar";
+import { useProfileGate } from "@/hooks/use-profile-gate";
 
 const SOURCES = [
   { value: "LINKEDIN", label: "LinkedIn" },
@@ -23,6 +24,7 @@ interface SubmitResponse {
 
 export default function IngestPage() {
   const router = useRouter();
+  const { profileComplete, loading: profileLoading, missingFields } = useProfileGate();
   const [rawContent, setRawContent] = useState("");
   const [source, setSource] = useState("LINKEDIN");
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +63,23 @@ export default function IngestPage() {
       <Navbar />
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {!profileLoading && !profileComplete && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6 text-center">
+            <h3 className="text-base font-medium text-yellow-800">Profile incomplete</h3>
+            <p className="mt-1 text-sm text-yellow-700">
+              Complete your profile before submitting offers so we can score them against your preferences.
+            </p>
+            <p className="mt-1 text-xs text-yellow-600">
+              Missing: {missingFields.join(", ")}
+            </p>
+            <a
+              href="/profile"
+              className="mt-3 inline-flex items-center rounded-md bg-yellow-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-yellow-700"
+            >
+              Go to Profile
+            </a>
+          </div>
+        )}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-medium text-gray-900 mb-1">
             Paste Recruiter Message
@@ -135,7 +154,7 @@ export default function IngestPage() {
             {/* Submit */}
             <button
               type="submit"
-              disabled={loading || isEmpty}
+              disabled={loading || isEmpty || !profileComplete}
               className="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Submitting..." : "Submit for Analysis"}

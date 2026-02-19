@@ -12,6 +12,7 @@ import {
   type OpportunityListItem,
   type StaleItem,
 } from "@/hooks/use-opportunities";
+import { useProfileGate } from "@/hooks/use-profile-gate";
 
 type SortField = "date" | "score";
 
@@ -50,6 +51,7 @@ export default function DashboardPage() {
   const [archivedFilter, setArchivedFilter] = useState<string>("");
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+  const { profileComplete, tooltipMessage } = useProfileGate();
 
   const sorted = sortOpportunities(opportunities, sortBy);
   const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
@@ -140,12 +142,21 @@ export default function DashboardPage() {
               </div>
             )}
 
-            <a
-              href="/ingest"
-              className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              + New Offer
-            </a>
+            {profileComplete ? (
+              <a
+                href="/ingest"
+                className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                + New Offer
+              </a>
+            ) : (
+              <span
+                title={tooltipMessage}
+                className="inline-flex items-center rounded-md bg-gray-300 px-4 py-2 text-sm font-medium text-gray-500 shadow-sm cursor-not-allowed"
+              >
+                + New Offer
+              </span>
+            )}
           </div>
         </div>
 
@@ -178,16 +189,36 @@ export default function DashboardPage() {
             <h3 className="text-base font-medium text-gray-900">
               No opportunities yet
             </h3>
-            <p className="mt-2 text-sm text-gray-500">
-              Start by pasting a recruiter message to create your first
-              opportunity.
-            </p>
-            <a
-              href="/ingest"
-              className="mt-4 inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
-            >
-              + New Offer
-            </a>
+            {profileComplete ? (
+              <>
+                <p className="mt-2 text-sm text-gray-500">
+                  Start by pasting a recruiter message to create your first
+                  opportunity.
+                </p>
+                <a
+                  href="/ingest"
+                  className="mt-4 inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
+                >
+                  + New Offer
+                </a>
+              </>
+            ) : (
+              <>
+                <p className="mt-2 text-sm text-gray-500">
+                  Before adding offers, complete your profile so we can score
+                  opportunities against your preferences.
+                </p>
+                <a
+                  href="/profile"
+                  className="mt-4 inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
+                >
+                  Complete Profile
+                </a>
+                <p className="mt-2 text-xs text-gray-400">
+                  Required: Name, Professional Title, 3+ Skills, Minimum Salary, Work Model
+                </p>
+              </>
+            )}
           </div>
         )}
 

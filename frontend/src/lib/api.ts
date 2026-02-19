@@ -15,15 +15,29 @@ export class ApiError extends Error {
   }
 }
 
-async function handleResponse<T>(response: Response): Promise<T> {
+const AUTH_PATHS = ["/auth/login", "/auth/register", "/auth/logout"];
+
+async function handleResponse<T>(response: Response, path: string): Promise<T> {
   if (!response.ok) {
-    // Auto-redirect to login on 401 (session expired or not authenticated)
-    if (response.status === 401 && typeof window !== "undefined") {
+    const isAuthEndpoint = AUTH_PATHS.some((p) => path.includes(p));
+
+    // Auto-redirect to login on 401 — but only for non-auth endpoints
+    // (a 401 on /auth/login means wrong credentials, not expired session)
+    if (response.status === 401 && !isAuthEndpoint && typeof window !== "undefined") {
       window.location.href = "/login";
       throw new ApiError(401, "Session expired");
     }
     const body = await response.json().catch(() => ({ detail: response.statusText }));
-    throw new ApiError(response.status, body.detail || response.statusText);
+    // FastAPI validation errors (422) return detail as an array of objects
+    let detail: string;
+    if (Array.isArray(body.detail)) {
+      detail = body.detail
+        .map((e: { msg?: string }) => (e.msg || String(e)).replace(/^Value error, /i, ""))
+        .join(". ");
+    } else {
+      detail = body.detail || response.statusText;
+    }
+    throw new ApiError(response.status, detail);
   }
   return response.json() as Promise<T>;
 }
@@ -34,7 +48,7 @@ export async function apiGet<T>(path: string): Promise<T> {
     credentials: "include",
     headers: { "Content-Type": "application/json" },
   });
-  return handleResponse<T>(response);
+  return handleResponse<T>(response, path);
 }
 
 export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
@@ -44,7 +58,7 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
     headers: { "Content-Type": "application/json" },
     body: body ? JSON.stringify(body) : undefined,
   });
-  return handleResponse<T>(response);
+  return handleResponse<T>(response, path);
 }
 
 export async function apiPut<T>(path: string, body: unknown): Promise<T> {
@@ -54,7 +68,7 @@ export async function apiPut<T>(path: string, body: unknown): Promise<T> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  return handleResponse<T>(response);
+  return handleResponse<T>(response, path);
 }
 
 export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
@@ -64,7 +78,7 @@ export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  return handleResponse<T>(response);
+  return handleResponse<T>(response, path);
 }
 
 export async function apiDelete<T>(path: string): Promise<T> {
@@ -73,7 +87,7 @@ export async function apiDelete<T>(path: string): Promise<T> {
     credentials: "include",
     headers: { "Content-Type": "application/json" },
   });
-  return handleResponse<T>(response);
+  return handleResponse<T>(response, path);
 }
 
 export async function apiUpload<T>(path: string, file: File): Promise<T> {
@@ -85,5 +99,5 @@ export async function apiUpload<T>(path: string, file: File): Promise<T> {
     credentials: "include",
     body: formData,
   });
-  return handleResponse<T>(response);
+  return handleResponse<T>(response, path);
 }

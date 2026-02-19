@@ -22,6 +22,11 @@ interface ProfileFormProps {
 }
 
 const WORK_MODELS = ["", "REMOTE", "HYBRID", "ONSITE"];
+const MIN_SKILLS = 3;
+
+function RequiredMark() {
+  return <span className="text-red-500 ml-0.5">*</span>;
+}
 
 export default function ProfileForm({ initial, onSave, loading }: ProfileFormProps) {
   const [displayName, setDisplayName] = useState(initial?.display_name ?? "");
@@ -42,13 +47,24 @@ export default function ProfileForm({ initial, onSave, loading }: ProfileFormPro
       .filter(Boolean);
   }
 
+  const parsedSkills = parseList(skills);
+  const salaryNum = minSalary ? parseInt(minSalary) : null;
+
+  const isComplete =
+    displayName.trim().length > 0 &&
+    professionalTitle.trim().length > 0 &&
+    parsedSkills.length >= MIN_SKILLS &&
+    salaryNum !== null &&
+    salaryNum > 0 &&
+    workModel.trim().length > 0;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     await onSave({
       display_name: displayName,
       professional_title: professionalTitle,
-      skills: parseList(skills),
-      min_salary: minSalary ? parseInt(minSalary) : null,
+      skills: parsedSkills,
+      min_salary: salaryNum,
       preferred_currency: currency || "EUR",
       work_model: workModel,
       preferred_locations: parseList(locations),
@@ -61,24 +77,31 @@ export default function ProfileForm({ initial, onSave, loading }: ProfileFormPro
   const inputClass =
     "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 placeholder:text-gray-400";
   const labelClass = "block text-sm font-medium text-gray-700";
+  const hintClass = "mt-1 text-xs text-red-500";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <p className="text-xs text-gray-500">
+        Fields marked with <span className="text-red-500">*</span> are required to submit offers.
+      </p>
+
       <div>
-        <label htmlFor="displayName" className={labelClass}>Display Name *</label>
+        <label htmlFor="displayName" className={labelClass}>Name <RequiredMark /></label>
         <input
           id="displayName"
           type="text"
-          required
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
           className={inputClass}
           placeholder="Your name"
         />
+        {!displayName.trim() && (
+          <p className={hintClass}>Required to submit offers</p>
+        )}
       </div>
 
       <div>
-        <label htmlFor="professionalTitle" className={labelClass}>Professional Title</label>
+        <label htmlFor="professionalTitle" className={labelClass}>Professional Title <RequiredMark /></label>
         <input
           id="professionalTitle"
           type="text"
@@ -87,10 +110,15 @@ export default function ProfileForm({ initial, onSave, loading }: ProfileFormPro
           className={inputClass}
           placeholder="e.g., Senior Backend Engineer"
         />
+        {!professionalTitle.trim() && (
+          <p className={hintClass}>Required to submit offers</p>
+        )}
       </div>
 
       <div>
-        <label htmlFor="skills" className={labelClass}>Skills (comma-separated)</label>
+        <label htmlFor="skills" className={labelClass}>
+          Skills (comma-separated) <RequiredMark />
+        </label>
         <input
           id="skills"
           type="text"
@@ -99,11 +127,18 @@ export default function ProfileForm({ initial, onSave, loading }: ProfileFormPro
           className={inputClass}
           placeholder="Python, FastAPI, PostgreSQL"
         />
+        {parsedSkills.length < MIN_SKILLS && (
+          <p className={hintClass}>
+            {parsedSkills.length === 0
+              ? `Add at least ${MIN_SKILLS} skills`
+              : `${parsedSkills.length}/${MIN_SKILLS} skills — add ${MIN_SKILLS - parsedSkills.length} more`}
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label htmlFor="minSalary" className={labelClass}>Minimum Salary</label>
+          <label htmlFor="minSalary" className={labelClass}>Minimum Salary <RequiredMark /></label>
           <input
             id="minSalary"
             type="number"
@@ -112,6 +147,9 @@ export default function ProfileForm({ initial, onSave, loading }: ProfileFormPro
             className={inputClass}
             placeholder="80000"
           />
+          {(salaryNum === null || salaryNum <= 0) && (
+            <p className={hintClass}>Required to submit offers</p>
+          )}
         </div>
         <div>
           <label htmlFor="currency" className={labelClass}>Currency</label>
@@ -128,7 +166,7 @@ export default function ProfileForm({ initial, onSave, loading }: ProfileFormPro
       </div>
 
       <div>
-        <label htmlFor="workModel" className={labelClass}>Work Model</label>
+        <label htmlFor="workModel" className={labelClass}>Work Model <RequiredMark /></label>
         <select
           id="workModel"
           value={workModel}
@@ -141,6 +179,9 @@ export default function ProfileForm({ initial, onSave, loading }: ProfileFormPro
             </option>
           ))}
         </select>
+        {!workModel.trim() && (
+          <p className={hintClass}>Required to submit offers</p>
+        )}
       </div>
 
       <div>
@@ -196,11 +237,16 @@ export default function ProfileForm({ initial, onSave, loading }: ProfileFormPro
 
       <button
         type="submit"
-        disabled={loading || !displayName}
+        disabled={loading || !isComplete}
         className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? "Saving..." : "Save Profile"}
       </button>
+      {!isComplete && (
+        <p className="text-center text-xs text-gray-400">
+          Fill all required fields to enable saving
+        </p>
+      )}
     </form>
   );
 }
