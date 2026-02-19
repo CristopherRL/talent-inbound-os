@@ -568,7 +568,7 @@ This project was built using **Claude Code** (Anthropic's CLI agent) as an AI co
 
 ## Presentation
 
-> Slides: _[TODO: Add link to presentation slides]_
+[View presentation slides on Gamma](https://gamma.app/docs/Talent-Inbound-OS-yi8xygv2vs7hckc)
 
 ---
 
@@ -582,3 +582,5 @@ MIT
 
 **Cristopher RL**
 Master en Desarrollo con IA — BIG School (2026)
+
+[LinkedIn](https://www.linkedin.com/in/cristopherrojaslepe/)
