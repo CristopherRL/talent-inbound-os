@@ -14,9 +14,11 @@ from talent_inbound.modules.opportunities.infrastructure.orm_models import (
     StageTransitionModel,
 )
 from talent_inbound.shared.domain.enums import (
+    TERMINAL_STAGES,
     InteractionType,
     OpportunityStage,
     ProcessingStatus,
+    ResponseType,
     TransitionTrigger,
 )
 from talent_inbound.shared.infrastructure.database import get_current_session
@@ -92,8 +94,31 @@ class ConfirmDraftSent:
         if opp:
             opp.last_interaction_at = now
 
+            current_stage = OpportunityStage(opp.stage)
+
+            # Auto-advance: → DECLINED when user confirms a DECLINE draft
+            if (
+                draft.response_type == ResponseType.DECLINE.value
+                and current_stage not in TERMINAL_STAGES
+            ):
+                from_stage = opp.stage
+                opp.stage = OpportunityStage.DECLINED.value
+
+                transition = StageTransitionModel(
+                    id=str(uuid.uuid4()),
+                    opportunity_id=opportunity_id,
+                    from_stage=from_stage,
+                    to_stage=OpportunityStage.DECLINED.value,
+                    triggered_by=TransitionTrigger.SYSTEM.value,
+                    is_unusual=False,
+                    note="Auto-advanced: user sent a decline response",
+                    created_at=now,
+                    updated_at=now,
+                )
+                session.add(transition)
+
             # Auto-advance: DISCOVERY → ENGAGING when user sends first response
-            if opp.stage == OpportunityStage.DISCOVERY.value:
+            elif opp.stage == OpportunityStage.DISCOVERY.value:
                 from_stage = opp.stage
                 opp.stage = OpportunityStage.ENGAGING.value
 

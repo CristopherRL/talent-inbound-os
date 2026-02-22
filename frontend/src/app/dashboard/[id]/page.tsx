@@ -29,17 +29,11 @@ import {
   type OpportunityDetail,
 } from "@/hooks/use-opportunities";
 
-const ALL_STAGES = [
-  "DISCOVERY",
-  "ENGAGING",
-  "INTERVIEWING",
-  "NEGOTIATING",
-  "OFFER",
-  "REJECTED",
-  "GHOSTED",
-];
+const ACTIVE_STAGES = ["DISCOVERY", "ENGAGING", "INTERVIEWING", "NEGOTIATING"];
+const FINAL_STAGES = ["OFFER", "REJECTED", "DECLINED", "GHOSTED"];
+const ALL_STAGES = [...ACTIVE_STAGES, ...FINAL_STAGES];
 
-const TERMINAL_STAGES = new Set(["OFFER", "REJECTED", "GHOSTED"]);
+const TERMINAL_STAGES = new Set(["OFFER", "REJECTED", "DECLINED", "GHOSTED"]);
 
 const STAGE_DESCRIPTIONS: Record<string, string> = {
   DISCOVERY: "Pipeline analyzed, you're evaluating the opportunity",
@@ -47,7 +41,8 @@ const STAGE_DESCRIPTIONS: Record<string, string> = {
   INTERVIEWING: "Formal interview process started",
   NEGOTIATING: "Discussing terms and compensation",
   OFFER: "You've received a formal offer",
-  REJECTED: "You've decided to pass",
+  REJECTED: "Company/recruiter rejected your candidacy",
+  DECLINED: "You chose to pass on this opportunity",
   GHOSTED: "No response from recruiter",
 };
 
@@ -123,9 +118,21 @@ function StageHelpTooltip() {
       </button>
       {open && (
         <div className="absolute left-0 top-6 z-20 w-72 rounded-lg border border-border bg-card shadow-xl shadow-primary/5 p-3">
-          <p className="text-xs font-medium text-foreground/80 mb-2">Stage meanings:</p>
+          <p className="text-xs font-medium text-foreground/80 mb-2">Active phases:</p>
           <dl className="space-y-1">
-            {ALL_STAGES.map((s) => (
+            {ACTIVE_STAGES.map((s) => (
+              <div key={s} className="flex gap-2">
+                <dt className="text-xs font-medium text-muted-foreground min-w-[110px]">
+                  {s}
+                </dt>
+                <dd className="text-xs text-muted-foreground/80">{STAGE_DESCRIPTIONS[s]}</dd>
+              </div>
+            ))}
+          </dl>
+          <hr className="my-2 border-border" />
+          <p className="text-xs font-medium text-foreground/80 mb-2">Final outcomes:</p>
+          <dl className="space-y-1">
+            {FINAL_STAGES.map((s) => (
               <div key={s} className="flex gap-2">
                 <dt className="text-xs font-medium text-muted-foreground min-w-[110px]">
                   {s}
@@ -503,9 +510,16 @@ export default function OpportunityDetailPage() {
                 onChange={(e) => handleStageChange(e.target.value)}
                 className="text-sm border border-input rounded-md px-2 py-1.5 text-foreground bg-background"
               >
-                {ALL_STAGES.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
+                <optgroup label="Active phases">
+                  {ACTIVE_STAGES.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Final outcomes">
+                  {FINAL_STAGES.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </optgroup>
               </select>
 
               {confirmUnusual && (
@@ -530,7 +544,7 @@ export default function OpportunityDetailPage() {
                 </div>
               )}
 
-              {!opp.is_archived && TERMINAL_STAGES.has(opp.stage) && (
+              {!opp.is_archived && (
                 <Button variant="outline" size="sm" onClick={handleArchive}>
                   Archive
                 </Button>

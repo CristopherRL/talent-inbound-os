@@ -10,6 +10,7 @@ class OpportunityStage(StrEnum):
     NEGOTIATING = "NEGOTIATING"
     OFFER = "OFFER"
     REJECTED = "REJECTED"
+    DECLINED = "DECLINED"
     GHOSTED = "GHOSTED"
 
 
@@ -17,6 +18,7 @@ TERMINAL_STAGES = frozenset(
     {
         OpportunityStage.OFFER,
         OpportunityStage.REJECTED,
+        OpportunityStage.DECLINED,
         OpportunityStage.GHOSTED,
     }
 )

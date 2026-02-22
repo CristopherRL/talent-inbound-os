@@ -103,7 +103,7 @@ The system enforces a **human-in-the-loop** principle: the AI prepares everythin
 - **Stage Detector** — Suggests lifecycle stage transitions based on conversation context
 
 ### Opportunity Dashboard
-- Filterable by stage (Discovery, Engaging, Interviewing, Negotiating, Offer, Rejected, Ghosted)
+- Filterable by stage (Discovery, Engaging, Interviewing, Negotiating, Offer, Rejected, Declined, Ghosted)
 - Sortable by date or match score
 - Stale opportunity alerts (configurable threshold)
 - Pagination with configurable page size
@@ -111,7 +111,7 @@ The system enforces a **human-in-the-loop** principle: the AI prepares everythin
 
 ### Conversational Cycle
 - Review and edit AI-drafted responses before sending
-- Confirm when a draft is sent — auto-advances stage from Discovery to Engaging
+- Confirm when a draft is sent — auto-advances stage from Discovery to Engaging, or to Declined when a decline draft is sent
 - Submit follow-up recruiter messages for re-analysis
 - The follow-up pipeline preserves context and does not force stage changes
 
@@ -124,10 +124,14 @@ stateDiagram-v2
     ENGAGING --> INTERVIEWING : AI detects interview scheduling
     INTERVIEWING --> NEGOTIATING : AI detects offer discussion
     NEGOTIATING --> OFFER : Formal offer received
-    DISCOVERY --> REJECTED : User or AI rejects
-    ENGAGING --> REJECTED : User or AI rejects
-    INTERVIEWING --> REJECTED : User or AI rejects
-    NEGOTIATING --> REJECTED : User or AI rejects
+    DISCOVERY --> DECLINED : User sends decline response
+    ENGAGING --> DECLINED : User sends decline response
+    INTERVIEWING --> DECLINED : User sends decline response
+    NEGOTIATING --> DECLINED : User sends decline response
+    DISCOVERY --> REJECTED : Company/recruiter rejects
+    ENGAGING --> REJECTED : Company/recruiter rejects
+    INTERVIEWING --> REJECTED : Company/recruiter rejects
+    NEGOTIATING --> REJECTED : Company/recruiter rejects
     ENGAGING --> GHOSTED : No response (threshold exceeded)
     INTERVIEWING --> GHOSTED : No response (threshold exceeded)
     NEGOTIATING --> GHOSTED : No response (threshold exceeded)
@@ -276,7 +280,7 @@ graph TD
 
 Each agent is powered by **Claude** (Anthropic) models via LangChain:
 - **Fast model** (Claude Haiku 4.5): Guardrail, Gatekeeper, Language Detector, Stage Detector
-- **Smart model** (Claude Sonnet 4.5): Extractor, Analyst, Communicator
+- **Smart model** (Claude Sonnet 4.5/4.6): Extractor, Analyst, Communicator
 
 The pipeline supports two modes:
 - **Initial analysis**: Full pipeline (all 7 agents) for a new recruiter message
@@ -581,7 +585,7 @@ This project was built using **Claude Code** (Anthropic's CLI agent) as an AI co
 
 ## Presentation
 
-[View presentation slides on Gamma](https://gamma.app/docs/Talent-Inbound-OS-yi8xygv2vs7hckc)
+[View presentation slides on Gamma](https://gamma.app/docs/Talent-Inbound-OS-9qrp3i7a57a2pe2)
 
 ---
 

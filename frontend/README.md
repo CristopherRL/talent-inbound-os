@@ -71,7 +71,7 @@ The dashboard (`/dashboard`) displays all opportunities as cards. Each card show
 
 - **Company name and role title** -- extracted by the AI pipeline.
 - **Match score** (0-100) with color coding: green for scores above 70, yellow for 40-70, and red below 40. These thresholds are configurable via `NEXT_PUBLIC_SCORING_THRESHOLD_HIGH` and `NEXT_PUBLIC_SCORING_THRESHOLD_MEDIUM` environment variables.
-- **Current stage badge** -- one of DISCOVERY, ENGAGING, INTERVIEWING, NEGOTIATING, OFFER, REJECTED, or GHOSTED.
+- **Current stage badge** -- one of DISCOVERY, ENGAGING, INTERVIEWING, NEGOTIATING, OFFER, REJECTED, DECLINED, or GHOSTED.
 - **Tech stack chips** -- the technologies mentioned in the offer.
 - **Missing fields warning** -- displayed when critical data could not be extracted (salary, role, tech stack).
 - **Time since creation** -- relative timestamp.
@@ -100,7 +100,7 @@ The detail page (`/dashboard/[id]`) provides a comprehensive view:
 7. Mark a draft as **"Final"** to indicate it is the chosen version. Non-final drafts are hidden when a final sibling exists.
 8. Click **"Confirm Sent"** to record that the response was sent. This action:
    - Records a `CANDIDATE_RESPONSE` interaction in the timeline.
-   - Auto-advances the stage from DISCOVERY to ENGAGING (if this is the first confirmed response).
+   - Auto-advances the stage from DISCOVERY to ENGAGING (if this is the first confirmed response), or to DECLINED (if the draft is a decline response).
    - Switches the view to an "Awaiting Recruiter Reply" state with a follow-up form.
 
 ### Language Detection
@@ -118,20 +118,20 @@ The detail page (`/dashboard/[id]`) provides a comprehensive view:
 3. **User reviews the draft** -- edits it if needed, then marks it as final.
 4. **User confirms the message was sent** -- the stage advances and the view switches to "Awaiting Follow-up."
 5. **Recruiter replies** -- the user pastes the new message as a follow-up. The pipeline re-runs with the full conversation context.
-6. **The cycle repeats** until a terminal stage is reached (OFFER, REJECTED, or GHOSTED).
+6. **The cycle repeats** until a terminal stage is reached (OFFER, REJECTED, DECLINED, or GHOSTED).
 
 ### Stage Lifecycle
 
 Stages progress through the following flow:
 
 ```
-DISCOVERY --> ENGAGING --> INTERVIEWING --> NEGOTIATING --> [OFFER | REJECTED | GHOSTED]
+DISCOVERY --> ENGAGING --> INTERVIEWING --> NEGOTIATING --> [OFFER | REJECTED | DECLINED | GHOSTED]
 ```
 
-- **Automatic transitions**: DISCOVERY advances to ENGAGING when the user confirms that their first draft response was sent.
+- **Automatic transitions**: DISCOVERY advances to ENGAGING when the user confirms that their first draft response was sent. Any active stage advances to DECLINED when the user confirms a decline draft was sent.
 - **AI-suggested transitions**: The Stage Detector agent may suggest a transition (e.g., "move to INTERVIEWING" after detecting interview scheduling language in a recruiter message). The user sees an inline banner and a confirmation modal to accept or dismiss the suggestion.
-- **Manual transitions**: The user can change the stage via a dropdown in the Actions section. Unusual transitions (such as skipping stages) trigger a confirmation prompt.
-- **Terminal stages**: OFFER, REJECTED, and GHOSTED are end states. Opportunities in terminal stages can be archived.
+- **Manual transitions**: The user can change the stage via a grouped dropdown in the Actions section (Active phases and Final outcomes are visually separated via `<optgroup>`). Unusual transitions (such as skipping stages) trigger a confirmation prompt.
+- **Terminal stages**: OFFER, REJECTED, DECLINED, and GHOSTED are end states. Opportunities can be archived from any stage.
 
 ### Match Score
 
