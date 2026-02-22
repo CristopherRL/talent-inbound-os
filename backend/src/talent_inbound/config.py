@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     upload_dir: str = str(_BACKEND_DIR / "uploads")
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 
+    # Chat
+    chat_daily_limit: int = 50
+    embedding_model: str = "text-embedding-3-small"
+
     # Ingestion
     max_message_length: int = 50000
 

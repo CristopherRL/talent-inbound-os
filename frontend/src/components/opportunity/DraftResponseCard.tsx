@@ -18,6 +18,8 @@ interface DraftResponseCardProps {
   onSave: (draftId: string, editedContent: string, isFinal: boolean) => Promise<void>;
   onDelete: (draftId: string) => Promise<void>;
   onConfirmSent?: (draftId: string) => Promise<void>;
+  /** When true and this draft is not final, collapse it — a final version exists */
+  hasFinalSibling?: boolean;
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -26,7 +28,7 @@ const TYPE_LABELS: Record<string, string> = {
   DECLINE: "Decline",
 };
 
-export default function DraftResponseCard({ draft, onSave, onDelete, onConfirmSent }: DraftResponseCardProps) {
+export default function DraftResponseCard({ draft, onSave, onDelete, onConfirmSent, hasFinalSibling = false }: DraftResponseCardProps) {
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(draft.edited_content || draft.generated_content);
   const [saving, setSaving] = useState(false);
@@ -71,52 +73,57 @@ export default function DraftResponseCard({ draft, onSave, onDelete, onConfirmSe
     }
   }
 
+  // Non-final draft hidden when a final sibling exists
+  if (hasFinalSibling && !draft.is_final && !draft.is_sent) {
+    return null;
+  }
+
   // Sent state — read-only display
   if (draft.is_sent) {
     return (
-      <div className="border border-green-200 bg-green-50 rounded-lg p-4">
+      <div className="border border-emerald-500/25 bg-emerald-500/10 rounded-lg p-4">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-gray-700">
+            <span className="text-xs font-medium text-foreground/80">
               {TYPE_LABELS[draft.response_type] || draft.response_type}
             </span>
-            <span className="text-xs text-green-700 font-medium bg-green-100 px-1.5 py-0.5 rounded">
+            <span className="text-xs text-emerald-400 font-medium bg-emerald-500/15 px-1.5 py-0.5 rounded">
               Sent
             </span>
           </div>
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-muted-foreground">
             Sent {draft.sent_at ? new Date(draft.sent_at).toLocaleString() : ""}
           </span>
         </div>
-        <p className="text-sm text-gray-600 whitespace-pre-wrap">{displayText}</p>
+        <p className="text-sm text-foreground/70 whitespace-pre-wrap">{displayText}</p>
       </div>
     );
   }
 
   return (
-    <div className="border rounded-lg p-4">
+    <div className="border border-border rounded-lg p-4">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-gray-700">
+          <span className="text-xs font-medium text-foreground/80">
             {TYPE_LABELS[draft.response_type] || draft.response_type}
           </span>
           {draft.is_final && (
-            <span className="text-xs text-green-600 font-medium bg-green-50 px-1.5 py-0.5 rounded">
+            <span className="text-xs text-emerald-400 font-medium bg-emerald-500/10 px-1.5 py-0.5 rounded">
               Final
             </span>
           )}
           {draft.edited_content && !draft.is_final && (
-            <span className="text-xs text-blue-500">Edited</span>
+            <span className="text-xs text-primary">Edited</span>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-muted-foreground">
             {new Date(draft.created_at).toLocaleString()}
           </span>
           <button
             onClick={handleDelete}
             disabled={deleting}
-            className="text-gray-300 hover:text-red-500 disabled:opacity-50"
+            className="text-muted-foreground/50 hover:text-rose-400 disabled:opacity-50 transition-colors"
             title="Delete draft"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -132,26 +139,26 @@ export default function DraftResponseCard({ draft, onSave, onDelete, onConfirmSe
             value={editText}
             onChange={(e) => setEditText(e.target.value)}
             rows={8}
-            className="w-full text-sm text-gray-900 border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full text-sm text-foreground bg-muted/50 border border-border rounded-lg p-2 focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
           />
           <div className="flex items-center gap-2">
             <button
               onClick={() => handleSave(false)}
               disabled={saving}
-              className="text-xs px-3 py-1.5 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+              className="text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/80 disabled:opacity-50 transition-colors"
             >
               {saving ? "Saving..." : "Save Draft"}
             </button>
             <button
               onClick={() => handleSave(true)}
               disabled={saving}
-              className="text-xs px-3 py-1.5 rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+              className="text-xs px-3 py-1.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-50 transition-colors"
             >
               {saving ? "Saving..." : "Mark as Final"}
             </button>
             <button
               onClick={() => { setEditing(false); setEditText(displayText); }}
-              className="text-xs px-3 py-1.5 rounded border border-gray-300 text-gray-600 hover:bg-gray-50"
+              className="text-xs px-3 py-1.5 rounded-md border border-border text-muted-foreground hover:bg-muted transition-colors"
             >
               Cancel
             </button>
@@ -159,21 +166,21 @@ export default function DraftResponseCard({ draft, onSave, onDelete, onConfirmSe
         </div>
       ) : (
         <div>
-          <p className="text-sm text-gray-600 whitespace-pre-wrap mb-3">
+          <p className="text-sm text-foreground/70 whitespace-pre-wrap mb-3">
             {displayText}
           </p>
           <div className="flex items-center gap-2">
             {!draft.is_final && (
               <button
                 onClick={() => setEditing(true)}
-                className="text-xs px-3 py-1.5 rounded border border-gray-300 text-gray-600 hover:bg-gray-50"
+                className="text-xs px-3 py-1.5 rounded-md border border-border text-muted-foreground hover:bg-muted transition-colors"
               >
                 Edit
               </button>
             )}
             <button
               onClick={handleCopy}
-              className="text-xs px-3 py-1.5 rounded border border-gray-300 text-gray-600 hover:bg-gray-50"
+              className="text-xs px-3 py-1.5 rounded-md border border-border text-muted-foreground hover:bg-muted transition-colors"
             >
               {copied ? "Copied!" : "Copy"}
             </button>
@@ -181,7 +188,7 @@ export default function DraftResponseCard({ draft, onSave, onDelete, onConfirmSe
               <button
                 onClick={handleConfirmSent}
                 disabled={confirming}
-                className="text-xs px-3 py-1.5 rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                className="text-xs px-3 py-1.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-50 transition-colors"
               >
                 {confirming ? "Confirming..." : "I've Sent This"}
               </button>

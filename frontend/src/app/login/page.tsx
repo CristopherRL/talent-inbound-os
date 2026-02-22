@@ -21,7 +21,6 @@ export default function LoginPage() {
       router.push("/dashboard");
     } catch (err: unknown) {
       if (err instanceof Error && err.message) {
-        // Backend returns generic "Invalid email or password" (no user enumeration)
         setError(err.message);
       } else {
         setError("Unable to sign in. Please check your credentials and try again.");
@@ -32,27 +31,31 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow">
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+      {/* Decorative gradient orbs */}
+      <div className="absolute top-[-20%] left-[15%] w-[500px] h-[500px] bg-blue-500/8 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-[-15%] right-[10%] w-[400px] h-[400px] bg-violet-500/6 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="relative max-w-md w-full space-y-8 p-8 bg-card/80 backdrop-blur-xl rounded-2xl border border-border shadow-2xl shadow-primary/5 mx-4">
         <div>
-          <h1 className="text-2xl font-bold text-center text-gray-900">
+          <h1 className="text-2xl font-bold text-center bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
             Talent Inbound OS
           </h1>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className="mt-2 text-center text-sm text-muted-foreground">
             Sign in to your account
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm">
+            <div className="bg-destructive/10 border border-destructive/25 text-destructive px-4 py-3 rounded-lg text-sm">
               {error}
             </div>
           )}
 
           <div className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="email" className="block text-sm font-medium text-foreground/80">
                 Email
               </label>
               <input
@@ -61,13 +64,13 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 placeholder:text-gray-400"
+                className="mt-1 block w-full px-3 py-2.5 bg-muted/50 border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
                 placeholder="you@example.com"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="password" className="block text-sm font-medium text-foreground/80">
                 Password
               </label>
               <input
@@ -76,7 +79,7 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 placeholder:text-gray-400"
+                className="mt-1 block w-full px-3 py-2.5 bg-muted/50 border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
                 placeholder="Min 8 chars, 1 upper, 1 lower, 1 digit"
               />
             </div>
@@ -85,14 +88,14 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full flex justify-center py-2.5 px-4 rounded-lg text-sm font-medium text-primary-foreground bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 focus:outline-none focus:ring-2 focus:ring-primary/50 shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
             {loading ? "Signing in..." : "Sign in"}
           </button>
 
-          <p className="text-center text-sm text-gray-600">
+          <p className="text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{" "}
-            <a href="/register" className="text-blue-600 hover:text-blue-500 font-medium">
+            <a href="/register" className="text-primary hover:text-primary/80 font-medium transition-colors">
               Register
             </a>
           </p>

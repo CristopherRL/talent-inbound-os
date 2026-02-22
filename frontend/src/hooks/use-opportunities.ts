@@ -32,6 +32,7 @@ export interface OpportunityDetail {
   match_reasoning: string | null;
   missing_fields: string[];
   stage: string;
+  detected_language: string | null;
   suggested_stage: string | null;
   suggested_stage_reason: string | null;
   is_archived: boolean;
@@ -165,11 +166,13 @@ export async function generateDraft(
   opportunityId: string,
   responseType: string,
   additionalContext?: string,
+  language?: string,
 ): Promise<DraftResponse> {
-  const body: { response_type: string; additional_context?: string } = {
+  const body: { response_type: string; additional_context?: string; language?: string } = {
     response_type: responseType,
   };
   if (additionalContext) body.additional_context = additionalContext;
+  if (language) body.language = language;
   return apiPost<DraftResponse>(`/opportunities/${opportunityId}/drafts`, body);
 }
 

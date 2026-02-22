@@ -9,6 +9,8 @@ Opportunity context:
 Candidate profile context:
 {profile_context}
 
+{language_instruction}
+
 Guidelines:
 - Maintain a professional, senior-level tone throughout
 - Be concise but courteous
@@ -18,6 +20,5 @@ Guidelines:
 - If response_type is DECLINE: decline gracefully, keep the door open for future opportunities
 - Never include personal contact information
 - Keep the response between 50-200 words
-- Write in English by default
 
 Return ONLY the draft text, no additional formatting or explanation.

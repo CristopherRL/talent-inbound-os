@@ -4,6 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/api";
 import Navbar from "@/components/ui/Navbar";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useProfileGate } from "@/hooks/use-profile-gate";
 
 const SOURCES = [
@@ -59,108 +63,100 @@ export default function IngestPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-muted/40">
       <Navbar />
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {!profileLoading && !profileComplete && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6 text-center">
-            <h3 className="text-base font-medium text-yellow-800">Profile incomplete</h3>
-            <p className="mt-1 text-sm text-yellow-700">
-              Complete your profile before submitting offers so we can score them against your preferences.
-            </p>
-            <p className="mt-1 text-xs text-yellow-600">
-              Missing: {missingFields.join(", ")}
-            </p>
-            <a
-              href="/profile"
-              className="mt-3 inline-flex items-center rounded-md bg-yellow-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-yellow-700"
-            >
-              Go to Profile
-            </a>
-          </div>
+          <Card className="mb-6 border-amber-500/25 bg-amber-500/10">
+            <CardContent className="p-6 text-center">
+              <h3 className="text-base font-semibold text-amber-300">Profile incomplete</h3>
+              <p className="mt-1 text-sm text-amber-400">
+                Complete your profile before submitting offers so we can score them.
+              </p>
+              {missingFields.length > 0 && (
+                <p className="mt-1 text-xs text-amber-400/80">
+                  Missing: {missingFields.join(", ")}
+                </p>
+              )}
+              <Button asChild className="mt-3 bg-amber-600 hover:bg-amber-500">
+                <a href="/profile">Go to Profile</a>
+              </Button>
+            </CardContent>
+          </Card>
         )}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-1">
-            Paste Recruiter Message
-          </h2>
-          <p className="text-sm text-gray-500 mb-6">
-            Copy-paste the recruiter&apos;s message below and select where it
-            came from. The AI pipeline will classify, extract data, and score
-            the opportunity.
-          </p>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Source selector */}
-            <div>
-              <label
-                htmlFor="source"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Source
-              </label>
-              <select
-                id="source"
-                value={source}
-                onChange={(e) => setSource(e.target.value)}
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              >
-                {SOURCES.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Paste Recruiter Message</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Copy-paste the recruiter&apos;s message below and select where it came from.
+              The AI pipeline will classify, extract data, and score the opportunity.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">
+                  Source
+                </label>
+                <Select value={source} onValueChange={setSource}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SOURCES.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>
+                        {s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Message textarea */}
-            <div>
-              <label
-                htmlFor="raw_content"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Message
-              </label>
-              <textarea
-                id="raw_content"
-                rows={12}
-                value={rawContent}
-                onChange={(e) => setRawContent(e.target.value)}
-                maxLength={MAX_LENGTH}
-                placeholder="Paste the recruiter's message here..."
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-y"
-              />
-              <div className="flex justify-between mt-1">
-                <span
-                  className={`text-xs ${
-                    charCount > MAX_LENGTH * 0.9
-                      ? "text-red-500"
-                      : "text-gray-400"
-                  }`}
+              <div>
+                <label
+                  htmlFor="raw_content"
+                  className="block text-sm font-medium text-foreground mb-1.5"
                 >
-                  {charCount.toLocaleString()} / {MAX_LENGTH.toLocaleString()}{" "}
-                  characters
-                </span>
+                  Message
+                </label>
+                <Textarea
+                  id="raw_content"
+                  rows={12}
+                  value={rawContent}
+                  onChange={(e) => setRawContent(e.target.value)}
+                  maxLength={MAX_LENGTH}
+                  placeholder="Paste the recruiter's message here..."
+                  className="resize-y"
+                />
+                <div className="mt-1 text-right">
+                  <span
+                    className={`text-xs ${
+                      charCount > MAX_LENGTH * 0.9 ? "text-destructive" : "text-muted-foreground"
+                    }`}
+                  >
+                    {charCount.toLocaleString()} / {MAX_LENGTH.toLocaleString()} characters
+                  </span>
+                </div>
               </div>
-            </div>
 
-            {/* Error display */}
-            {error && (
-              <div className="rounded-md bg-red-50 border border-red-200 p-3">
-                <p className="text-sm text-red-700">{error}</p>
-              </div>
-            )}
+              {error && (
+                <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3">
+                  <p className="text-sm text-destructive">{error}</p>
+                </div>
+              )}
 
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={loading || isEmpty || !profileComplete}
-              className="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? "Submitting..." : "Submit for Analysis"}
-            </button>
-          </form>
-        </div>
+              <Button
+                type="submit"
+                disabled={loading || isEmpty || !profileComplete}
+                className="w-full"
+              >
+                {loading ? "Submitting..." : "Submit for Analysis"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       </main>
     </div>
   );

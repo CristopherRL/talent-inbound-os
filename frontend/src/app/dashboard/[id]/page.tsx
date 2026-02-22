@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Navbar from "@/components/ui/Navbar";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import DraftResponseCard from "@/components/opportunity/DraftResponseCard";
 import FollowUpForm from "@/components/opportunity/FollowUpForm";
 import MatchScoreCard from "@/components/opportunity/MatchScoreCard";
@@ -114,21 +116,21 @@ function StageHelpTooltip() {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-4 h-4 rounded-full bg-gray-200 text-gray-500 text-[10px] font-bold leading-none hover:bg-gray-300 inline-flex items-center justify-center"
+        className="w-4 h-4 rounded-full bg-muted text-muted-foreground text-[10px] font-bold leading-none hover:bg-muted/80 inline-flex items-center justify-center"
         title="Stage descriptions"
       >
         ?
       </button>
       {open && (
-        <div className="absolute left-0 top-6 z-20 w-72 rounded-md border border-gray-200 bg-white shadow-lg p-3">
-          <p className="text-xs font-medium text-gray-700 mb-2">Stage meanings:</p>
+        <div className="absolute left-0 top-6 z-20 w-72 rounded-lg border border-border bg-card shadow-xl shadow-primary/5 p-3">
+          <p className="text-xs font-medium text-foreground/80 mb-2">Stage meanings:</p>
           <dl className="space-y-1">
             {ALL_STAGES.map((s) => (
               <div key={s} className="flex gap-2">
-                <dt className="text-xs font-medium text-gray-600 min-w-[110px]">
+                <dt className="text-xs font-medium text-muted-foreground min-w-[110px]">
                   {s}
                 </dt>
-                <dd className="text-xs text-gray-500">{STAGE_DESCRIPTIONS[s]}</dd>
+                <dd className="text-xs text-muted-foreground/80">{STAGE_DESCRIPTIONS[s]}</dd>
               </div>
             ))}
           </dl>
@@ -149,6 +151,7 @@ export default function OpportunityDetailPage() {
   const [stageLoading, setStageLoading] = useState(false);
   const [confirmUnusual, setConfirmUnusual] = useState<string | null>(null);
   const [draftType, setDraftType] = useState("EXPRESS_INTEREST");
+  const [draftLanguage, setDraftLanguage] = useState("auto");
   const [additionalContext, setAdditionalContext] = useState("");
   const [generating, setGenerating] = useState(false);
   const [suggestionModalOpen, setSuggestionModalOpen] = useState(false);
@@ -158,7 +161,11 @@ export default function OpportunityDetailPage() {
 
   useEffect(() => {
     fetchOpportunityDetail(id)
-      .then(setOpp)
+      .then((data) => {
+        setOpp(data);
+        // Use pipeline-detected language, fall back to "auto"
+        setDraftLanguage(data.detected_language || "auto");
+      })
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load"))
       .finally(() => setLoading(false));
   }, [id]);
@@ -243,7 +250,7 @@ export default function OpportunityDetailPage() {
   async function handleGenerateDraft() {
     setGenerating(true);
     try {
-      await generateDraft(id, draftType, additionalContext || undefined);
+      await generateDraft(id, draftType, additionalContext || undefined, draftLanguage === "auto" ? undefined : draftLanguage);
       await refreshDetail();
       setAdditionalContext("");
     } catch (err: unknown) {
@@ -331,10 +338,10 @@ export default function OpportunityDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-muted/40">
         <Navbar />
         <div className="flex items-center justify-center py-20">
-          <p className="text-gray-500">Loading...</p>
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
@@ -342,15 +349,17 @@ export default function OpportunityDetailPage() {
 
   if (error || !opp) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-muted/40">
         <Navbar />
         <div className="max-w-3xl mx-auto px-4 py-8">
-          <button onClick={() => router.back()} className="text-sm text-blue-600 mb-4">
+          <Button variant="ghost" onClick={() => router.back()} className="mb-4">
             &larr; Back
-          </button>
-          <div className="rounded-md bg-red-50 border border-red-200 p-4">
-            <p className="text-sm text-red-700">{error || "Not found"}</p>
-          </div>
+          </Button>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-sm text-destructive">{error || "Not found"}</p>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );
@@ -359,32 +368,30 @@ export default function OpportunityDetailPage() {
   const timeline = buildTimeline();
   const cycleState = deriveCycleState(opp);
   const currentDrafts = getCurrentRoundDrafts(opp);
+  const hasFinalDraft = currentDrafts.some((d) => d.is_final);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-muted/40">
       <Navbar />
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
         {/* Back + header */}
-        <button
-          onClick={() => router.push("/dashboard")}
-          className="text-sm text-blue-600 hover:text-blue-500 mb-4"
-        >
+        <Button variant="ghost" onClick={() => router.push("/dashboard")} className="-ml-2">
           &larr; Back to Dashboard
-        </button>
+        </Button>
 
-        <div className="flex items-start justify-between mb-4">
+        <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">
+            <h1 className="text-xl font-bold text-foreground">
               {opp.company_name || "Unknown Company"}
             </h1>
-            <p className="text-gray-600">
+            <p className="text-muted-foreground">
               {opp.role_title || "Role not extracted"}
             </p>
           </div>
           <div className="flex items-center gap-2">
             <StageBadge stage={opp.stage} />
             {opp.is_archived && (
-              <span className="text-xs text-gray-400 border border-gray-300 rounded px-2 py-0.5">
+              <span className="text-xs text-muted-foreground border border-border rounded px-2 py-0.5">
                 Archived
               </span>
             )}
@@ -392,87 +399,87 @@ export default function OpportunityDetailPage() {
         </div>
 
         {/* Stage Progress Indicator */}
-        <div className="mb-4">
-          <StageProgressIndicator currentStage={opp.stage} />
-        </div>
+        <StageProgressIndicator currentStage={opp.stage} />
 
         {/* Stage Suggestion Banner */}
         {opp.suggested_stage && (
-          <div className="mb-4">
-            <StageSuggestionBanner
-              suggestedStage={opp.suggested_stage}
-              reason={opp.suggested_stage_reason}
-              onAccept={handleAcceptSuggestion}
-              onDismiss={handleDismissSuggestion}
-            />
-          </div>
+          <StageSuggestionBanner
+            suggestedStage={opp.suggested_stage}
+            reason={opp.suggested_stage_reason}
+            onAccept={handleAcceptSuggestion}
+            onDismiss={handleDismissSuggestion}
+          />
         )}
 
         {/* Grid: left = details, right = score */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Extracted data */}
-          <div className="lg:col-span-2 bg-white rounded-lg border p-4 space-y-3">
-            <h2 className="text-sm font-medium text-gray-900">Extracted Data</h2>
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-              {opp.salary_range && (
-                <>
-                  <dt className="text-gray-500">Salary</dt>
-                  <dd className="text-gray-900">{opp.salary_range}</dd>
-                </>
-              )}
-              {opp.work_model && (
-                <>
-                  <dt className="text-gray-500">Work Model</dt>
-                  <dd className="text-gray-900">{opp.work_model}</dd>
-                </>
-              )}
-              {opp.recruiter_name && (
-                <>
-                  <dt className="text-gray-500">Recruiter</dt>
-                  <dd className="text-gray-900">
-                    {opp.recruiter_name}
-                    {opp.recruiter_type && (
-                      <span className="text-gray-400 ml-1">({opp.recruiter_type})</span>
-                    )}
-                  </dd>
-                </>
-              )}
-              {opp.recruiter_company && (
-                <>
-                  <dt className="text-gray-500">Recruiter Co.</dt>
-                  <dd className="text-gray-900">{opp.recruiter_company}</dd>
-                </>
-              )}
-              {opp.client_name && (
-                <>
-                  <dt className="text-gray-500">Client</dt>
-                  <dd className="text-gray-900">{opp.client_name}</dd>
-                </>
-              )}
-            </dl>
-            {opp.tech_stack.length > 0 && (
-              <div>
-                <span className="text-xs text-gray-500">Tech Stack</span>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {opp.tech_stack.map((t) => (
-                    <span
-                      key={t}
-                      className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-700"
-                    >
-                      {t}
-                    </span>
-                  ))}
+          <Card className="lg:col-span-2">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Extracted Data</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                {opp.salary_range && (
+                  <>
+                    <dt className="text-muted-foreground">Salary</dt>
+                    <dd className="text-foreground">{opp.salary_range}</dd>
+                  </>
+                )}
+                {opp.work_model && (
+                  <>
+                    <dt className="text-muted-foreground">Work Model</dt>
+                    <dd className="text-foreground">{opp.work_model}</dd>
+                  </>
+                )}
+                {opp.recruiter_name && (
+                  <>
+                    <dt className="text-muted-foreground">Recruiter</dt>
+                    <dd className="text-foreground">
+                      {opp.recruiter_name}
+                      {opp.recruiter_type && (
+                        <span className="text-muted-foreground ml-1">({opp.recruiter_type})</span>
+                      )}
+                    </dd>
+                  </>
+                )}
+                {opp.recruiter_company && (
+                  <>
+                    <dt className="text-muted-foreground">Recruiter Co.</dt>
+                    <dd className="text-foreground">{opp.recruiter_company}</dd>
+                  </>
+                )}
+                {opp.client_name && (
+                  <>
+                    <dt className="text-muted-foreground">Client</dt>
+                    <dd className="text-foreground">{opp.client_name}</dd>
+                  </>
+                )}
+              </dl>
+              {opp.tech_stack.length > 0 && (
+                <div>
+                  <span className="text-xs text-muted-foreground">Tech Stack</span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {opp.tech_stack.map((t) => (
+                      <span
+                        key={t}
+                        className="inline-flex items-center rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+                      >
+                        {t}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
-            {opp.missing_fields.length > 0 && (
-              <div className="rounded bg-yellow-50 p-2">
-                <span className="text-xs text-yellow-700 font-medium">
-                  Missing: {opp.missing_fields.join(", ")}
-                </span>
-              </div>
-            )}
-          </div>
+              )}
+              {opp.missing_fields.length > 0 && (
+                <div className="rounded-lg bg-amber-500/10 border border-amber-500/25 p-2">
+                  <span className="text-xs text-amber-400 font-medium">
+                    Missing: {opp.missing_fields.join(", ")}
+                  </span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Match score */}
           <div>
@@ -481,196 +488,217 @@ export default function OpportunityDetailPage() {
         </div>
 
         {/* Stage change + archive */}
-        <div className="bg-white rounded-lg border p-4 mb-8">
-          <h2 className="text-sm font-medium text-gray-900 mb-3">Actions</h2>
-          <div className="flex items-center gap-3 flex-wrap">
-            <label className="text-sm text-gray-600 flex items-center gap-1">
-              Change stage: <StageHelpTooltip />
-            </label>
-            <select
-              disabled={stageLoading}
-              value={opp.stage}
-              onChange={(e) => handleStageChange(e.target.value)}
-              className="text-sm border border-gray-300 rounded-md px-2 py-1.5 text-gray-700 bg-white"
-            >
-              {ALL_STAGES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-
-            {/* Unusual transition confirmation */}
-            {confirmUnusual && (
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-yellow-600 font-medium">
-                  Unusual transition detected.
-                </span>
-                <button
-                  onClick={() => handleStageChange(confirmUnusual)}
-                  className="text-yellow-700 underline"
-                >
-                  Confirm
-                </button>
-                <button
-                  onClick={() => setConfirmUnusual(null)}
-                  className="text-gray-500"
-                >
-                  Cancel
-                </button>
-              </div>
-            )}
-
-            {/* Archive/unarchive */}
-            {!opp.is_archived && TERMINAL_STAGES.has(opp.stage) && (
-              <button
-                onClick={handleArchive}
-                className="text-sm text-gray-600 hover:text-gray-900 px-3 py-1.5 rounded border border-gray-300"
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Actions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-3 flex-wrap">
+              <label className="text-sm text-muted-foreground flex items-center gap-1">
+                Change stage: <StageHelpTooltip />
+              </label>
+              <select
+                disabled={stageLoading}
+                value={opp.stage}
+                onChange={(e) => handleStageChange(e.target.value)}
+                className="text-sm border border-input rounded-md px-2 py-1.5 text-foreground bg-background"
               >
-                Archive
-              </button>
-            )}
-            {opp.is_archived && (
-              <button
-                onClick={handleUnarchive}
-                className="text-sm text-blue-600 hover:text-blue-500 px-3 py-1.5 rounded border border-blue-300"
-              >
-                Unarchive
-              </button>
-            )}
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              className="text-sm text-red-600 hover:text-red-700 px-3 py-1.5 rounded border border-red-300 hover:border-red-400"
-            >
-              Delete
-            </button>
-          </div>
+                {ALL_STAGES.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
 
-          {/* Delete confirmation dialog */}
-          {showDeleteConfirm && (
-            <div className="mt-3 rounded-md bg-red-50 border border-red-200 p-4">
-              <p className="text-sm font-medium text-red-800">
-                Permanently delete this opportunity?
-              </p>
-              <p className="text-sm text-red-700 mt-1">
-                This action is irreversible. All related interactions, drafts, and stage history will be deleted. If you just want to hide it, consider archiving instead.
-              </p>
-              <div className="flex gap-3 mt-3">
-                <button
-                  onClick={handleDeleteOpportunity}
-                  className="text-sm font-medium text-white bg-red-600 hover:bg-red-700 px-4 py-1.5 rounded"
-                >
-                  Yes, delete permanently
-                </button>
-                <button
-                  onClick={() => setShowDeleteConfirm(false)}
-                  className="text-sm text-gray-700 hover:text-gray-900 px-4 py-1.5 rounded border border-gray-300"
-                >
-                  Cancel
-                </button>
-              </div>
+              {confirmUnusual && (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-yellow-600 font-medium">Unusual transition detected.</span>
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="text-yellow-700 p-0 h-auto"
+                    onClick={() => handleStageChange(confirmUnusual)}
+                  >
+                    Confirm
+                  </Button>
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="text-muted-foreground p-0 h-auto"
+                    onClick={() => setConfirmUnusual(null)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              )}
+
+              {!opp.is_archived && TERMINAL_STAGES.has(opp.stage) && (
+                <Button variant="outline" size="sm" onClick={handleArchive}>
+                  Archive
+                </Button>
+              )}
+              {opp.is_archived && (
+                <Button variant="outline" size="sm" onClick={handleUnarchive}>
+                  Unarchive
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-destructive border-destructive/50 hover:bg-destructive/10"
+                onClick={() => setShowDeleteConfirm(true)}
+              >
+                Delete
+              </Button>
             </div>
-          )}
-        </div>
+
+            {showDeleteConfirm && (
+              <div className="mt-4 rounded-md bg-destructive/10 border border-destructive/20 p-4">
+                <p className="text-sm font-medium text-destructive">
+                  Permanently delete this opportunity?
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  This action is irreversible. All related interactions, drafts, and stage history will be deleted.
+                </p>
+                <div className="flex gap-3 mt-3">
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={handleDeleteOpportunity}
+                  >
+                    Yes, delete permanently
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowDeleteConfirm(false)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Timeline */}
-        <div className="bg-white rounded-lg border p-4 mb-8">
-          <h2 className="text-sm font-medium text-gray-900 mb-3">Timeline</h2>
-          <Timeline events={timeline} />
-        </div>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Timeline</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Timeline events={timeline} />
+          </CardContent>
+        </Card>
 
         {/* Cycle-state-dependent section */}
         {cycleState === "terminal" && (
-          <div className="bg-white rounded-lg border p-4">
-            <h2 className="text-sm font-medium text-gray-900 mb-2">Opportunity Closed</h2>
-            <p className="text-sm text-gray-500">
-              This opportunity is in a terminal stage ({opp.stage}).
-              {opp.is_archived ? " It has been archived." : " You can archive it from the Actions section above."}
-            </p>
-            {/* Still show all drafts (read-only) */}
-            {opp.draft_responses.length > 0 && (
-              <div className="mt-4 space-y-3">
-                <h3 className="text-xs font-medium text-gray-500">Previous Drafts</h3>
-                {opp.draft_responses.map((d) => (
-                  <DraftResponseCard
-                    key={d.id}
-                    draft={d}
-                    onSave={handleSaveDraft}
-                    onDelete={handleDeleteDraft}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Opportunity Closed</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">
+                This opportunity is in a terminal stage ({opp.stage}).
+                {opp.is_archived ? " It has been archived." : " You can archive it from the Actions section above."}
+              </p>
+              {opp.draft_responses.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-xs font-medium text-muted-foreground">Previous Drafts</h3>
+                  {opp.draft_responses.map((d) => (
+                    <DraftResponseCard
+                      key={d.id}
+                      draft={d}
+                      onSave={handleSaveDraft}
+                      onDelete={handleDeleteDraft}
+                    />
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         )}
 
         {cycleState === "awaiting_followup" && (
-          <div className="bg-white rounded-lg border p-4">
-            <h2 className="text-sm font-medium text-gray-900 mb-2">Awaiting Recruiter Reply</h2>
-            <p className="text-xs text-gray-500 mb-4">
-              You&apos;ve sent your response. When the recruiter replies, paste their message below
-              to trigger a new analysis cycle.
-            </p>
-            <FollowUpForm
-              defaultSource={getDefaultSource(opp)}
-              onSubmit={handleSubmitFollowUp}
-            />
-          </div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Awaiting Recruiter Reply</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground mb-4">
+                You&apos;ve sent your response. When the recruiter replies, paste their message below
+                to trigger a new analysis cycle.
+              </p>
+              <FollowUpForm
+                defaultSource={getDefaultSource(opp)}
+                onSubmit={handleSubmitFollowUp}
+              />
+            </CardContent>
+          </Card>
         )}
 
         {cycleState === "drafting" && (
-          <div className="bg-white rounded-lg border p-4">
-            <h2 className="text-sm font-medium text-gray-900 mb-3">
-              Draft Responses
-            </h2>
-
-            {/* Generate new draft */}
-            <div className="space-y-2 mb-4">
-              <div className="flex items-center gap-2">
-                <select
-                  value={draftType}
-                  onChange={(e) => setDraftType(e.target.value)}
-                  className="text-sm border border-gray-300 rounded-md px-2 py-1.5 text-gray-700 bg-white"
-                >
-                  <option value="EXPRESS_INTEREST">Express Interest</option>
-                  <option value="REQUEST_INFO">Request Info</option>
-                  <option value="DECLINE">Decline</option>
-                </select>
-                <button
-                  onClick={handleGenerateDraft}
-                  disabled={generating}
-                  className="text-sm px-4 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {generating ? "Generating..." : "Generate Draft"}
-                </button>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Draft Responses</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 mb-4">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <select
+                    value={draftType}
+                    onChange={(e) => setDraftType(e.target.value)}
+                    className="text-sm border border-input rounded-md px-2 py-1.5 text-foreground bg-background"
+                  >
+                    <option value="EXPRESS_INTEREST">Express Interest</option>
+                    <option value="REQUEST_INFO">Request Info</option>
+                    <option value="DECLINE">Decline</option>
+                  </select>
+                  <select
+                    value={draftLanguage}
+                    onChange={(e) => setDraftLanguage(e.target.value)}
+                    className="text-sm border border-input rounded-md px-2 py-1.5 text-foreground bg-background"
+                    title="Draft language"
+                  >
+                    <option value="auto">Auto-detect</option>
+                    <option value="en">English</option>
+                    <option value="es">Spanish</option>
+                  </select>
+                  <Button
+                    onClick={handleGenerateDraft}
+                    disabled={generating}
+                    size="sm"
+                  >
+                    {generating ? "Generating..." : "Generate Draft"}
+                  </Button>
+                </div>
+                <textarea
+                  value={additionalContext}
+                  onChange={(e) => setAdditionalContext(e.target.value)}
+                  placeholder="Additional instructions (optional)"
+                  rows={2}
+                  className="w-full text-sm text-foreground placeholder:text-muted-foreground border border-input rounded-md px-2 py-1.5 focus:ring-2 focus:ring-ring focus:border-ring bg-background"
+                />
               </div>
-              <textarea
-                value={additionalContext}
-                onChange={(e) => setAdditionalContext(e.target.value)}
-                placeholder="Additional instructions (optional) — e.g. 'mencionar que tengo disponibilidad inmediata' or 'ask about equity package'"
-                rows={2}
-                className="w-full text-sm text-gray-900 placeholder:text-gray-400 border border-gray-300 rounded-md px-2 py-1.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
 
-            {currentDrafts.length === 0 ? (
-              <p className="text-sm text-gray-500">
-                No drafts yet. Select a response type above and click &quot;Generate Draft&quot;.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {currentDrafts.map((d) => (
-                  <DraftResponseCard
-                    key={d.id}
-                    draft={d}
-                    onSave={handleSaveDraft}
-                    onDelete={handleDeleteDraft}
-                    onConfirmSent={handleConfirmSent}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+              {currentDrafts.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No drafts yet. Select a response type above and click &quot;Generate Draft&quot;.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {currentDrafts.map((d) => (
+                    <DraftResponseCard
+                      key={d.id}
+                      draft={d}
+                      onSave={handleSaveDraft}
+                      onDelete={handleDeleteDraft}
+                      onConfirmSent={handleConfirmSent}
+                      hasFinalSibling={hasFinalDraft && !d.is_final}
+                    />
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         )}
       </div>
 

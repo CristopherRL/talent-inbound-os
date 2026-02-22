@@ -116,14 +116,28 @@ async def _llm_draft(
     extracted_data: dict,
     profile=None,
     additional_context: str | None = None,
+    language: str | None = None,
 ) -> str:
     """Use LLM to generate a draft response."""
     prompt_template = load_prompt("communicator")
+
+    # Build language instruction from detected or overridden language
+    if language:
+        lang_names = {"en": "English", "es": "Spanish"}
+        lang_name = lang_names.get(language, language)
+        language_instruction = (
+            f"LANGUAGE: Write the entire response in {lang_name}."
+        )
+    else:
+        language_instruction = "LANGUAGE: Write the entire response in English."
+
     prompt = prompt_template.format(
         response_type=response_type,
         opportunity_context=_build_opportunity_context(extracted_data),
         profile_context=_build_profile_context(profile),
+        language_instruction=language_instruction,
     )
+
     user_msg = f"Generate a {response_type} draft response."
     if additional_context:
         user_msg += (
@@ -171,9 +185,13 @@ def create_communicator_node(
                 except Exception:
                     pass
 
-        # Generate draft
+        # Generate draft — use language detected by the Language Detector agent
+        detected_lang = state.get("detected_language")
         if model is not None:
-            draft_text = await _llm_draft(model, response_type, extracted, profile)
+            draft_text = await _llm_draft(
+                model, response_type, extracted, profile,
+                language=detected_lang,
+            )
             source = "llm"
         else:
             draft_text = _mock_draft(response_type, extracted, profile)
@@ -205,6 +223,7 @@ async def generate_draft_standalone(
     profile=None,
     model: BaseChatModel | None = None,
     additional_context: str | None = None,
+    language: str | None = None,
 ) -> str:
     """Generate a draft response outside of the pipeline graph.
 
@@ -212,6 +231,7 @@ async def generate_draft_standalone(
     """
     if model is not None:
         return await _llm_draft(
-            model, response_type, extracted_data, profile, additional_context
+            model, response_type, extracted_data, profile, additional_context,
+            language=language,
         )
     return _mock_draft(response_type, extracted_data, profile, additional_context)

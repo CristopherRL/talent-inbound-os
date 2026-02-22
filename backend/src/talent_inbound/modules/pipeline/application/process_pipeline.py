@@ -101,6 +101,7 @@ class ProcessPipeline:
                 opportunity = await self._opportunity_repo.find_by_id(opportunity_id)
                 if opportunity:
                     self._apply_extracted_data(opportunity, result)
+                    self._apply_detected_language(opportunity, result)
                     self._apply_scoring(opportunity, result)
                     self._apply_stage_suggestion(opportunity, result)
                     await self._save_draft(opportunity_id, result)
@@ -135,7 +136,7 @@ class ProcessPipeline:
                     log.info(
                         "pipeline_completed",
                         classification=classification_str,
-                        final_stage=final_stage.value,
+                        final_stage=stage_value,
                     )
                     return
 
@@ -198,6 +199,14 @@ class ProcessPipeline:
         if extracted.get("recruiter_company"):
             opportunity.recruiter_company = extracted["recruiter_company"]
         opportunity.missing_fields = extracted.get("missing_fields", [])
+
+    def _apply_detected_language(
+        self, opportunity: Opportunity, result: dict
+    ) -> None:
+        """Apply detected language from the Language Detector agent."""
+        lang = result.get("detected_language")
+        if lang:
+            opportunity.detected_language = lang
 
     def _apply_scoring(self, opportunity: Opportunity, result: dict) -> None:
         """Apply match score and reasoning from the Analyst."""
