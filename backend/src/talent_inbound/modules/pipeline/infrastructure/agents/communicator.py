@@ -130,7 +130,10 @@ async def _llm_draft(
             f"LANGUAGE: Write the entire response in {lang_name}."
         )
     else:
-        language_instruction = "LANGUAGE: Write the entire response in English."
+        language_instruction = (
+            "LANGUAGE: Detect the language of the recruiter's message from the "
+            "opportunity context and write the entire response in that same language."
+        )
 
     conversation_section = (
         f"Conversation history:\n{conversation_history}"
