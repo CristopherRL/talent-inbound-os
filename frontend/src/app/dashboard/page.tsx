@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "@/components/ui/Navbar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -42,7 +42,7 @@ function sortOpportunities(
   });
 }
 
-export default function DashboardPage() {
+function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [opportunities, setOpportunities] = useState<OpportunityListItem[]>([]);
@@ -272,5 +272,13 @@ export default function DashboardPage() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-muted/40" />}>
+      <DashboardContent />
+    </Suspense>
   );
 }
