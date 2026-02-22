@@ -5,6 +5,9 @@ import json
 import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from talent_inbound.modules.pipeline.infrastructure.agents.guardrail import (
+    check_guardrail,
+)
 from talent_inbound.modules.pipeline.infrastructure.model_router import ModelRouter
 from talent_inbound.modules.profile.domain.exceptions import ProfileNotFoundError
 from talent_inbound.modules.profile.domain.repositories import ProfileRepository
@@ -59,14 +62,28 @@ class ExtractCVSkills:
         if not profile.cv_extracted_text:
             return []
 
+        # Guardrail: check CV text for prompt injection before sending to LLM
+        guardrail_model = self._model_router.get_model("guardrail")
+        gr = await check_guardrail(
+            profile.cv_extracted_text[:20000], model=guardrail_model
+        )
+        if gr.prompt_injection_detected:
+            logger.warning(
+                "cv_text_injection_detected",
+                candidate_id=candidate_id,
+                source=gr.detection_source,
+            )
+            return []
+
         model = self._model_router.get_model("extractor")
         if model is None:
             logger.warning("cv_skills_no_llm_configured", candidate_id=candidate_id)
             return []
 
+        cv_text = gr.sanitized_text
         messages = [
             SystemMessage(content=_SYSTEM_PROMPT),
-            HumanMessage(content=profile.cv_extracted_text[:20000]),
+            HumanMessage(content=cv_text),
         ]
 
         try:

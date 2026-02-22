@@ -117,8 +117,8 @@ class TestLanguageDetectionPipeline:
             "when detected_language is 'es'."
         )
 
-    async def test_communicator_defaults_to_english_without_detected_language(self):
-        """When no detected_language in state, communicator defaults to English."""
+    async def test_communicator_infers_language_without_detected_language(self):
+        """When no detected_language in state, communicator asks LLM to infer from context."""
         comm_model = _make_mock_model("Thank you for reaching out.")
         profile_repo = AsyncMock()
         profile_repo.find_by_candidate_id.return_value = _make_profile()
@@ -144,7 +144,7 @@ class TestLanguageDetectionPipeline:
         assert "draft_response" in result
         assert comm_model.ainvoke.called
         system_prompt = _get_system_prompt(comm_model)
-        assert "English" in system_prompt
+        assert "Detect the language" in system_prompt
 
     async def test_standalone_draft_with_language_parameter(self):
         """generate_draft_standalone passes language to the LLM prompt."""
@@ -166,8 +166,8 @@ class TestLanguageDetectionPipeline:
         system_prompt = _get_system_prompt(model)
         assert "Spanish" in system_prompt
 
-    async def test_standalone_draft_without_language_defaults_to_english(self):
-        """generate_draft_standalone defaults to English when language is None."""
+    async def test_standalone_draft_without_language_infers_from_context(self):
+        """generate_draft_standalone infers language from context when language is None."""
         model = _make_mock_model()
 
         await generate_draft_standalone(
@@ -180,7 +180,7 @@ class TestLanguageDetectionPipeline:
 
         assert model.ainvoke.called
         system_prompt = _get_system_prompt(model)
-        assert "English" in system_prompt
+        assert "Detect the language" in system_prompt
 
     async def test_explicit_language_override_in_standalone(self):
         """When language is explicitly set, the instruction appears in the prompt."""

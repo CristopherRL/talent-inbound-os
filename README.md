@@ -93,10 +93,11 @@ The system enforces a **human-in-the-loop** principle: the AI prepares everythin
 - Two-action workflow: paste + confirm (frictionless ingestion)
 - Duplicate detection — prevents re-processing the same message
 
-### AI Agent Pipeline (6 stages)
-- **Guardrail & Sanitizer** — PII cleanup, prompt-injection detection
+### AI Agent Pipeline (7 stages)
+- **Guardrail & Sanitizer** — Two-layer defense: regex + FAST-tier LLM for PII cleanup and prompt-injection detection
 - **Gatekeeper** — Spam vs. real offer classification (rejects noise)
 - **Extractor** — Structured data extraction (company, role, salary, stack, remote, recruiter)
+- **Language Detector** — Detects recruiter message language (en/es) for correct draft language
 - **Analyst** — Match scoring (0-100) against candidate profile with detailed reasoning
 - **Communicator** — Context-aware response drafts (ask for info, accept, politely decline)
 - **Stage Detector** — Suggests lifecycle stage transitions based on conversation context
@@ -168,6 +169,8 @@ stateDiagram-v2
 | **React 19** | UI library |
 | **TypeScript 5** | Type safety |
 | **TailwindCSS 4** | Utility-first CSS |
+| **shadcn/ui** | Component library (Card, Button, Badge, Toast, etc.) |
+| **Recharts 3** | Data visualization for analytics dashboard |
 | **pnpm** | Package manager |
 
 ### Infrastructure
@@ -233,7 +236,7 @@ graph TB
 
 ## AI Agent Pipeline
 
-The core differentiator of the project. When a user pastes a recruiter message, it flows through a **LangGraph** stateful graph with 6 sequential agents:
+The core differentiator of the project. When a user pastes a recruiter message, it flows through a **LangGraph** stateful graph with 7 sequential agents:
 
 ```mermaid
 graph TD
@@ -241,35 +244,42 @@ graph TD
 
     MSG --> G1
 
-    G1["1. Guardrail & Sanitizer<br/>🛡️ Prompt injection detection + PII cleanup"]
-    G1 --> G2
+    G1["1. Guardrail & Sanitizer<br/>Regex + LLM prompt injection + PII cleanup"]
+    G1 -->|Clean| G2
+    G1 -->|Injection detected| BLK["Blocked"]
 
-    G2["2. Gatekeeper<br/>🚦 Spam vs. real offer classification"]
+    G2["2. Gatekeeper<br/>Spam vs. real offer classification"]
     G2 -->|Real offer| G3
-    G2 -->|Spam / Not an offer| REJ["❌ Rejected"]
+    G2 -->|Spam / Not an offer| REJ["Rejected"]
 
-    G3["3. Extractor<br/>📋 Company · Role · Salary · Stack · Remote · Recruiter"]
+    G3["3. Extractor<br/>Company, Role, Salary, Stack, Remote, Recruiter"]
     G3 --> G4
 
-    G4["4. Analyst<br/>📊 Match score (0-100) vs. Candidate Profile"]
-    G4 --> G5
+    G4["4. Language Detector<br/>Detects en/es for draft language"]
+    G4 -->|Missing fields| INCOMPLETE["Incomplete (manual draft)"]
+    G4 -->|All fields present| G5
 
-    G5["5. Communicator<br/>✉️ Drafts context-aware response"]
+    G5["5. Analyst<br/>Match score (0-100) vs. Candidate Profile"]
     G5 --> G6
 
-    G6["6. Stage Detector<br/>🔄 Suggests lifecycle stage transition"]
-    G6 --> DONE["✅ Opportunity ready for review"]
+    G6["6. Communicator<br/>Drafts context-aware response"]
+    G6 --> G7
+
+    G7["7. Stage Detector<br/>Suggests lifecycle stage transition"]
+    G7 --> DONE["Opportunity ready for review"]
 
     style REJ fill:#fee2e2,stroke:#ef4444
+    style BLK fill:#fee2e2,stroke:#ef4444
+    style INCOMPLETE fill:#fef3c7,stroke:#f59e0b
     style DONE fill:#dcfce7,stroke:#22c55e
 ```
 
 Each agent is powered by **Claude** (Anthropic) models via LangChain:
-- **Fast model** (Claude Haiku 4.5): Guardrail, Gatekeeper, Stage Detector
+- **Fast model** (Claude Haiku 4.5): Guardrail, Gatekeeper, Language Detector, Stage Detector
 - **Smart model** (Claude Sonnet 4.5): Extractor, Analyst, Communicator
 
 The pipeline supports two modes:
-- **Initial analysis**: Full pipeline (all 6 agents) for a new recruiter message
+- **Initial analysis**: Full pipeline (all 7 agents) for a new recruiter message
 - **Follow-up analysis**: Skips the Gatekeeper (already validated) and re-evaluates with conversation context
 
 ---
@@ -282,7 +292,7 @@ talent-inbound-os/
 │   ├── Dockerfile
 │   ├── pyproject.toml                  # Python dependencies & tooling config
 │   ├── alembic/                        # Database migrations
-│   │   └── versions/                   # 7 migration files
+│   │   └── versions/                   # 8 migration files
 │   ├── src/talent_inbound/
 │   │   ├── main.py                     # FastAPI app + startup
 │   │   ├── config.py                   # Settings (pydantic-settings)
@@ -294,19 +304,20 @@ talent-inbound-os/
 │   │       ├── auth/                   # Registration, login, JWT, logout
 │   │       ├── profile/                # Candidate profile CRUD, CV upload
 │   │       ├── ingestion/              # Message ingestion + duplicate detection
-│   │       ├── pipeline/               # LangGraph orchestration + 6 AI agents
+│   │       ├── pipeline/               # LangGraph orchestration + 7 AI agents
 │   │       │   ├── application/        # RunPipeline, RunFollowUpPipeline use cases
 │   │       │   ├── domain/             # PipelineState, PipelineResult
 │   │       │   ├── infrastructure/
 │   │       │   │   ├── agents/         # guardrail, gatekeeper, extractor,
-│   │       │   │   │                   # analyst, communicator, stage_detector
+│   │       │   │   │                   # language_detector, analyst,
+│   │       │   │   │                   # communicator, stage_detector
 │   │       │   │   ├── prompts/        # .txt prompt templates per agent
-│   │       │   │   └── langgraph_pipeline.py  # Graph definition
+│   │       │   │   └── graphs.py              # LangGraph graph definition
 │   │       │   └── presentation/       # SSE endpoint for real-time progress
 │   │       └── opportunities/          # Opportunity CRUD, stages, drafts, stale detection
-│   └── tests/                          # 53 test files
-│       ├── unit/                       # 130 unit tests
-│       ├── integration/                # 9 integration tests (testcontainers)
+│   └── tests/                          # 55 test files
+│       ├── unit/                       # 152+ unit tests
+│       ├── integration/                # 6 integration tests (testcontainers)
 │       └── e2e/                        # 28 end-to-end API tests
 ├── frontend/
 │   ├── Dockerfile
@@ -330,11 +341,13 @@ talent-inbound-os/
 ```
 
 **Key numbers:**
-- 117 Python source files, 28 TypeScript/TSX files
-- 53 test files with 167 tests (130 unit + 9 integration + 28 e2e)
-- 7 database migrations
-- 6 AI agents with dedicated prompt templates
-- 20 commits across 11 days of development
+- 119 Python source files, 45 TypeScript/TSX files
+- 55 test files with 214+ tests (152+ unit + 6 integration + 28 e2e)
+- 8 database migrations
+- 7 AI agents with 8 dedicated prompt templates
+- 26 commits across 15 days of development
+
+> For detailed technical documentation, see [backend/README.md](backend/README.md) and [frontend/README.md](frontend/README.md).
 
 ---
 
@@ -574,7 +587,9 @@ This project was built using **Claude Code** (Anthropic's CLI agent) as an AI co
 
 ## License
 
-MIT
+**AGPL v3**
+
+For commercial use or integration into proprietary products, please contact [cristopher.rojas.lepe@gmail.com] to obtain a commercial license.
 
 ---
 

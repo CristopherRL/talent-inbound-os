@@ -11,9 +11,47 @@ from talent_inbound.modules.opportunities.domain.repositories import (
 from talent_inbound.modules.pipeline.infrastructure.agents.communicator import (
     generate_draft_standalone,
 )
+from talent_inbound.modules.pipeline.infrastructure.agents.guardrail import (
+    check_guardrail,
+)
 from talent_inbound.shared.domain.enums import ResponseType
 
 logger = structlog.get_logger()
+
+
+def _build_extracted_data(opp) -> dict:
+    """Build extracted data dict from opportunity fields."""
+    return {
+        "company_name": opp.company_name,
+        "role_title": opp.role_title,
+        "salary_range": opp.salary_range,
+        "tech_stack": opp.tech_stack or [],
+        "work_model": opp.work_model.value
+        if hasattr(opp.work_model, "value")
+        else opp.work_model,
+        "recruiter_name": opp.recruiter_name,
+        "recruiter_company": opp.recruiter_company,
+        "missing_fields": opp.missing_fields or [],
+    }
+
+
+async def _check_additional_context(
+    text: str, model_router, opportunity_id: str
+) -> str:
+    """Run guardrail on additional_context, raise on injection, return sanitized text."""
+    guardrail_model = model_router.get_model("guardrail") if model_router else None
+    gr = await check_guardrail(text, model=guardrail_model)
+    if gr.prompt_injection_detected:
+        logger.warning(
+            "draft_additional_context_injection",
+            opportunity_id=opportunity_id,
+            source=gr.detection_source,
+        )
+        raise ValueError(
+            "The additional instructions were flagged as potentially unsafe. "
+            "Please rephrase and try again."
+        )
+    return gr.sanitized_text
 
 
 class GenerateDraft:
@@ -28,6 +66,15 @@ class GenerateDraft:
         self._opportunity_repo = opportunity_repo
         self._profile_repo = profile_repo
         self._model_router = model_router
+
+    async def _load_profile(self, candidate_id: str):
+        """Load candidate profile, returning None on failure."""
+        if not self._profile_repo:
+            return None
+        try:
+            return await self._profile_repo.find_by_candidate_id(candidate_id)
+        except Exception:
+            return None
 
     async def execute(
         self,
@@ -55,59 +102,33 @@ class GenerateDraft:
         if opp is None:
             raise OpportunityNotFoundError(opportunity_id)
 
-        # Build extracted data dict from opportunity fields
-        extracted_data = {
-            "company_name": opp.company_name,
-            "role_title": opp.role_title,
-            "salary_range": opp.salary_range,
-            "tech_stack": opp.tech_stack or [],
-            "work_model": opp.work_model.value
-            if hasattr(opp.work_model, "value")
-            else opp.work_model,
-            "recruiter_name": opp.recruiter_name,
-            "recruiter_company": opp.recruiter_company,
-            "missing_fields": opp.missing_fields or [],
-        }
-
-        # Load profile
-        profile = None
-        if self._profile_repo:
-            try:
-                profile = await self._profile_repo.find_by_candidate_id(
-                    opp.candidate_id
-                )
-            except Exception:
-                pass
-
-        # Resolve LLM model
-        model = None
-        if self._model_router:
-            model = self._model_router.get_model("communicator")
-
+        extracted_data = _build_extracted_data(opp)
+        profile = await self._load_profile(opp.candidate_id)
+        model = self._model_router.get_model("communicator") if self._model_router else None
         generation_mode = "llm" if model is not None else "mock"
 
-        log_ctx = {
-            "opportunity_id": opportunity_id,
-            "response_type": rt.value,
-            "mode": generation_mode,
-            "company": opp.company_name,
-        }
+        logger.info(
+            "draft_generation_started",
+            opportunity_id=opportunity_id,
+            response_type=rt.value,
+            mode=generation_mode,
+            company=opp.company_name,
+        )
+
+        # Guardrail: check additional_context for prompt injection
         if additional_context:
-            # Log a preview (first 100 chars) — not the full text for privacy
-            log_ctx["additional_context_preview"] = additional_context[:100]
-
-        logger.info("draft_generation_started", **log_ctx)
-
-        if additional_context and model is None:
-            logger.warning(
-                "additional_context_ignored",
-                reason="Mock mode cannot process additional instructions. "
-                "Configure an LLM API key to enable this feature.",
-                opportunity_id=opportunity_id,
+            additional_context = await _check_additional_context(
+                additional_context, self._model_router, opportunity_id
             )
 
         # Resolve effective language: explicit override > pipeline-detected > None
         effective_language = language or opp.detected_language
+        if not effective_language:
+            logger.warning(
+                "draft_language_unknown",
+                opportunity_id=opportunity_id,
+                hint="detected_language is NULL — LLM will infer from context",
+            )
 
         # Generate draft
         draft_text = await generate_draft_standalone(
