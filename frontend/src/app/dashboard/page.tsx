@@ -25,6 +25,7 @@ const ALL_STAGES = [
   "NEGOTIATING",
   "OFFER",
   "REJECTED",
+  "DECLINED",
   "GHOSTED",
 ];
 

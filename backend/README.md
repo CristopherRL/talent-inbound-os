@@ -283,9 +283,9 @@ The database is **PostgreSQL 16** with the **pgvector** extension for vector sim
 | `users`               | Authentication credentials: email (unique), hashed password (bcrypt), timestamps.                |
 | `candidate_profiles`  | Candidate data: skills (array), preferences, minimum salary, preferred work model, CV extracted text, associated user foreign key. |
 | `interactions`        | Raw ingested messages: source (`LINKEDIN`, `EMAIL`, `FREELANCE_PLATFORM`, `OTHER`), type (`INITIAL`, `FOLLOW_UP`, `CANDIDATE_RESPONSE`), raw content, processing status, linked opportunity. |
-| `opportunities`       | Structured vacancy data: company, role, salary range, tech stack, work model, recruiter info, `match_score` (0--100), `detected_language` (`en`/`es`), current `stage`, classification, missing fields, candidate foreign key. |
-| `draft_responses`     | AI-generated drafts: `response_type` (`REQUEST_INFO`, `EXPRESS_INTEREST`, `DECLINE`), `generated_content`, `edited_content` (user modifications), `is_final`, `is_sent`, linked opportunity. |
-| `stage_transitions`   | Stage change audit trail: `from_stage`, `to_stage`, `triggered_by` (`SYSTEM`, `USER`, `CHAT`), `is_unusual` flag, timestamp, linked opportunity. |
+| `opportunities`       | Structured vacancy data: company, role, salary range, tech stack, work model, recruiter info, `match_score` (0--100), `detected_language` (`en`/`es`), current `stage` (DISCOVERY, ENGAGING, INTERVIEWING, NEGOTIATING, OFFER, REJECTED, DECLINED, GHOSTED), classification, missing fields, candidate foreign key. |
+| `draft_responses`     | AI-generated drafts: `response_type` (`REQUEST_INFO`, `EXPRESS_INTEREST`, `DECLINE`), `generated_content`, `edited_content` (user modifications), `is_final`, `is_sent`, linked opportunity. Confirming a DECLINE draft as sent auto-advances the opportunity to the DECLINED stage. |
+| `stage_transitions`   | Stage change audit trail: `from_stage`, `to_stage`, `triggered_by` (`SYSTEM`, `USER`, `CHAT`), `is_unusual` flag, timestamp, linked opportunity. Auto-transitions include DISCOVERY→ENGAGING (first response sent) and any active stage→DECLINED (decline response sent). |
 
 ### Migrations
 
@@ -474,4 +474,4 @@ python -m talent_inbound.cli reset-password
 
 ## License
 
-MIT -- See [pyproject.toml](pyproject.toml) for details.
+AGPL v3 — See [LICENSE](../LICENSE) for details. For commercial use, contact [cristopher.rojas.lepe@gmail.com].

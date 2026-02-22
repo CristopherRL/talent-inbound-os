@@ -1,11 +1,12 @@
 "use client";
 
 const NON_TERMINAL_STAGES = ["DISCOVERY", "ENGAGING", "INTERVIEWING", "NEGOTIATING"];
-const TERMINAL_STAGES = new Set(["OFFER", "REJECTED", "GHOSTED"]);
+const TERMINAL_STAGES = new Set(["OFFER", "REJECTED", "DECLINED", "GHOSTED"]);
 
 const TERMINAL_COLORS: Record<string, string> = {
   OFFER: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
   REJECTED: "bg-rose-500/15 text-rose-400 border-rose-500/30",
+  DECLINED: "bg-orange-500/15 text-orange-400 border-orange-500/30",
   GHOSTED: "bg-amber-500/15 text-amber-400 border-amber-500/30",
 };
 

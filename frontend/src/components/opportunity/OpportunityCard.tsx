@@ -34,6 +34,7 @@ const STAGE_COLORS: Record<string, string> = {
   NEGOTIATING: "bg-amber-500/15 text-amber-400 border-amber-500/30",
   OFFER: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
   REJECTED: "bg-slate-400/15 text-slate-400 border-slate-400/30",
+  DECLINED: "bg-orange-500/15 text-orange-400 border-orange-500/30",
   GHOSTED: "bg-rose-500/15 text-rose-400 border-rose-500/30",
 };
 
