@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiPost } from "@/lib/api";
+import Link from "next/link";
+import { apiPost, DuplicateError } from "@/lib/api";
 import Navbar from "@/components/ui/Navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ export default function IngestPage() {
   const [rawContent, setRawContent] = useState("");
   const [source, setSource] = useState("LINKEDIN");
   const [error, setError] = useState<string | null>(null);
+  const [duplicateOpportunityId, setDuplicateOpportunityId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const charCount = rawContent.length;
@@ -40,6 +42,7 @@ export default function IngestPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setDuplicateOpportunityId(null);
 
     if (isEmpty) {
       setError("Please paste a recruiter message before submitting.");
@@ -54,9 +57,13 @@ export default function IngestPage() {
       });
       router.push("/dashboard");
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Failed to submit message.";
-      setError(message);
+      if (err instanceof DuplicateError) {
+        setDuplicateOpportunityId(err.existingOpportunityId);
+      } else {
+        const message =
+          err instanceof Error ? err.message : "Failed to submit message.";
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -140,6 +147,20 @@ export default function IngestPage() {
                   </span>
                 </div>
               </div>
+
+              {duplicateOpportunityId && (
+                <div className="rounded-md bg-amber-500/10 border border-amber-500/25 p-3">
+                  <p className="text-sm text-amber-300">
+                    A similar offer from the same company and role is already tracked.{" "}
+                    <Link
+                      href={`/dashboard/${duplicateOpportunityId}`}
+                      className="font-semibold underline hover:text-amber-200 transition-colors"
+                    >
+                      View existing opportunity →
+                    </Link>
+                  </p>
+                </div>
+              )}
 
               {error && (
                 <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3">

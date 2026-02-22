@@ -248,8 +248,12 @@ class ProcessPipeline:
         await session.flush()
 
     async def _build_combined_text(self, opportunity_id: str) -> str:
-        """Build combined text from all recruiter messages (INITIAL + FOLLOW_UP)
-        for the opportunity. Excludes CANDIDATE_RESPONSE interactions."""
+        """Build full conversation history from all interactions for the opportunity.
+
+        Includes recruiter messages (INITIAL/FOLLOW_UP) and candidate responses
+        in chronological order, so downstream agents (Communicator, Stage Detector)
+        have the complete recruiter-candidate dialogue as context.
+        """
         from sqlalchemy import select
 
         from talent_inbound.modules.ingestion.infrastructure.orm_models import (
@@ -260,15 +264,7 @@ class ProcessPipeline:
         session = get_current_session()
         stmt = (
             select(InteractionModel)
-            .where(
-                InteractionModel.opportunity_id == opportunity_id,
-                InteractionModel.interaction_type.in_(
-                    [
-                        InteractionType.INITIAL.value,
-                        InteractionType.FOLLOW_UP.value,
-                    ]
-                ),
-            )
+            .where(InteractionModel.opportunity_id == opportunity_id)
             .order_by(InteractionModel.created_at.asc())
         )
         result = await session.execute(stmt)
@@ -278,9 +274,13 @@ class ProcessPipeline:
         followup_num = 0
         for i in interactions:
             if i.interaction_type == InteractionType.INITIAL.value:
-                parts.append(f"--- Initial message ---\n{i.raw_content}")
-            else:
+                parts.append(f"--- Recruiter (initial message) ---\n{i.raw_content}")
+            elif i.interaction_type == InteractionType.FOLLOW_UP.value:
                 followup_num += 1
-                parts.append(f"--- Follow-up #{followup_num} ---\n{i.raw_content}")
+                parts.append(
+                    f"--- Recruiter (follow-up #{followup_num}) ---\n{i.raw_content}"
+                )
+            elif i.interaction_type == InteractionType.CANDIDATE_RESPONSE.value:
+                parts.append(f"--- Your response ---\n{i.raw_content}")
 
         return "\n\n".join(parts)

@@ -32,11 +32,11 @@ function InteractionEvent({ event }: { event: TimelineEvent }) {
   const dotColor = isCandidateResponse ? "bg-emerald-500" : "bg-primary";
   const labelColor = isCandidateResponse ? "text-emerald-400" : "text-primary";
 
-  let label = "Initial message";
+  let label = "Recruiter: Initial message";
   if (isCandidateResponse) {
     label = "Your response (sent)";
   } else if (event.interaction_type === "FOLLOW_UP") {
-    label = "Follow-up";
+    label = "Recruiter: Follow-up";
   }
 
   return (

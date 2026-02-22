@@ -68,12 +68,17 @@ class SubmitMessage:
             source=source,
         )
 
-        # Check for duplicates (scoped to this candidate)
+        # Phase 1: Exact hash check (fast path — catches identical copy-pastes)
         existing = await self._interaction_repo.find_duplicate(
             interaction.content_hash, command.candidate_id
         )
         if existing and existing.opportunity_id:
             raise DuplicateInteractionError(existing.opportunity_id)
+
+        # Phase 2: Field-based check (catches near-duplicates — same offer, different wording)
+        similar_id = await self._find_field_based_duplicate(stripped, command.candidate_id)
+        if similar_id:
+            raise DuplicateInteractionError(similar_id)
 
         # Create the Opportunity (starts in DISCOVERY stage)
         opportunity = Opportunity(candidate_id=command.candidate_id)
@@ -100,3 +105,32 @@ class SubmitMessage:
             interaction=saved_interaction,
             opportunity=saved_opportunity,
         )
+
+    async def _find_field_based_duplicate(
+        self, raw_content: str, candidate_id: str
+    ) -> str | None:
+        """Detect near-duplicate offers by comparing extracted fields from existing
+        opportunities against the new raw content.
+
+        Matches when company_name AND role_title from a previous opportunity both
+        appear in the new message (case-insensitive). This catches the same offer
+        pasted again with minor wording changes that would defeat the hash check.
+        """
+        content_lower = raw_content.lower()
+        existing = await self._opportunity_repo.list_by_candidate(candidate_id)
+
+        for opp in existing:
+            company = (opp.company_name or "").strip().lower()
+            role = (opp.role_title or "").strip().lower()
+
+            # Skip if we don't have extracted data yet (pipeline may not have run)
+            if not company or not role:
+                continue
+
+            company_match = company in content_lower
+            role_match = role in content_lower
+
+            if company_match and role_match:
+                return opp.id
+
+        return None

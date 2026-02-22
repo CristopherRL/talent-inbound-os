@@ -9,12 +9,15 @@ Opportunity context:
 Candidate profile context:
 {profile_context}
 
+{conversation_history}
+
 {language_instruction}
 
 Guidelines:
 - Maintain a professional, senior-level tone throughout
 - Be concise but courteous
 - Reference specific details from the opportunity (company name, role, tech stack)
+- When conversation history is provided, craft a reply that naturally continues the ongoing dialogue — acknowledge what was last said and respond in context
 - If response_type is REQUEST_INFO: politely ask for missing information (salary, work model, team size, etc.)
 - If response_type is EXPRESS_INTEREST: show genuine interest, mention relevant skills overlap, suggest next steps
 - If response_type is DECLINE: decline gracefully, keep the door open for future opportunities

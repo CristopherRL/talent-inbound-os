@@ -117,6 +117,7 @@ async def _llm_draft(
     profile=None,
     additional_context: str | None = None,
     language: str | None = None,
+    conversation_history: str | None = None,
 ) -> str:
     """Use LLM to generate a draft response."""
     prompt_template = load_prompt("communicator")
@@ -131,11 +132,18 @@ async def _llm_draft(
     else:
         language_instruction = "LANGUAGE: Write the entire response in English."
 
+    conversation_section = (
+        f"Conversation history:\n{conversation_history}"
+        if conversation_history
+        else ""
+    )
+
     prompt = prompt_template.format(
         response_type=response_type,
         opportunity_context=_build_opportunity_context(extracted_data),
         profile_context=_build_profile_context(profile),
         language_instruction=language_instruction,
+        conversation_history=conversation_section,
     )
 
     user_msg = f"Generate a {response_type} draft response."
@@ -185,12 +193,14 @@ def create_communicator_node(
                 except Exception:
                     pass
 
-        # Generate draft — use language detected by the Language Detector agent
+        # Generate draft — use language and full conversation history from state
         detected_lang = state.get("detected_language")
+        conversation_history = state.get("sanitized_text") or state.get("raw_input")
         if model is not None:
             draft_text = await _llm_draft(
                 model, response_type, extracted, profile,
                 language=detected_lang,
+                conversation_history=conversation_history,
             )
             source = "llm"
         else:
@@ -224,6 +234,7 @@ async def generate_draft_standalone(
     model: BaseChatModel | None = None,
     additional_context: str | None = None,
     language: str | None = None,
+    conversation_history: str | None = None,
 ) -> str:
     """Generate a draft response outside of the pipeline graph.
 
@@ -232,6 +243,6 @@ async def generate_draft_standalone(
     if model is not None:
         return await _llm_draft(
             model, response_type, extracted_data, profile, additional_context,
-            language=language,
+            language=language, conversation_history=conversation_history,
         )
     return _mock_draft(response_type, extracted_data, profile, additional_context)
