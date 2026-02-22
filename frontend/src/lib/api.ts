@@ -15,6 +15,13 @@ export class ApiError extends Error {
   }
 }
 
+export class DuplicateError extends ApiError {
+  constructor(public existingOpportunityId: string) {
+    super(409, "A similar offer already exists.");
+    this.name = "DuplicateError";
+  }
+}
+
 const AUTH_PATHS = ["/auth/login", "/auth/register", "/auth/logout"];
 
 async function handleResponse<T>(response: Response, path: string): Promise<T> {
@@ -28,6 +35,17 @@ async function handleResponse<T>(response: Response, path: string): Promise<T> {
       throw new ApiError(401, "Session expired");
     }
     const body = await response.json().catch(() => ({ detail: response.statusText }));
+
+    // Handle structured 409 (duplicate offer — detail is an object with existing_opportunity_id)
+    if (
+      response.status === 409 &&
+      body.detail &&
+      typeof body.detail === "object" &&
+      "existing_opportunity_id" in body.detail
+    ) {
+      throw new DuplicateError(String(body.detail.existing_opportunity_id));
+    }
+
     // FastAPI validation errors (422) return detail as an array of objects
     let detail: string;
     if (Array.isArray(body.detail)) {

@@ -77,6 +77,7 @@ def _opp_to_list_item(opp) -> OpportunityListItem:
         match_score=opp.match_score,
         missing_fields=opp.missing_fields,
         stage=opp.stage.value if hasattr(opp.stage, "value") else opp.stage,
+        detected_language=opp.detected_language,
         is_archived=opp.is_archived,
         created_at=opp.created_at,
         updated_at=opp.updated_at,
@@ -237,6 +238,7 @@ async def get_opportunity_detail(
         match_reasoning=opp.match_reasoning,
         missing_fields=opp.missing_fields,
         stage=opp.stage.value if hasattr(opp.stage, "value") else opp.stage,
+        detected_language=opp.detected_language,
         suggested_stage=opp.suggested_stage.value
         if hasattr(opp.suggested_stage, "value") and opp.suggested_stage
         else opp.suggested_stage,
@@ -462,6 +464,7 @@ async def generate_draft(
             opportunity_id=opportunity_id,
             response_type=body.response_type,
             additional_context=body.additional_context,
+            language=body.language,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -7,6 +7,7 @@ from fastapi.responses import Response
 from talent_inbound.container import Container
 from talent_inbound.modules.auth.domain.entities import User
 from talent_inbound.modules.auth.presentation.dependencies import get_current_user
+from talent_inbound.modules.profile.application.extract_cv_skills import ExtractCVSkills
 from talent_inbound.modules.profile.application.get_profile import GetProfile
 from talent_inbound.modules.profile.application.update_profile import (
     UpdateProfile,
@@ -24,6 +25,7 @@ from talent_inbound.modules.profile.domain.exceptions import (
 from talent_inbound.modules.profile.infrastructure.storage import StorageBackend
 from talent_inbound.modules.profile.presentation.schemas import (
     CVUploadResponse,
+    ExtractCVSkillsResponse,
     ProfileRequest,
     ProfileResponse,
 )
@@ -132,6 +134,24 @@ async def upload_cv(
         )
 
     return CVUploadResponse(cv_filename=profile.cv_filename or "")
+
+
+@router.post("/me/cv/extract-skills", response_model=ExtractCVSkillsResponse)
+@inject
+async def extract_cv_skills(
+    current_user: User = Depends(get_current_user),
+    extract_cv_skills_uc: ExtractCVSkills = Depends(
+        Provide[Container.extract_cv_skills_uc]
+    ),
+) -> ExtractCVSkillsResponse:
+    try:
+        skills = await extract_cv_skills_uc.execute(current_user.id)
+    except ProfileNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Profile not found.",
+        )
+    return ExtractCVSkillsResponse(skills=skills)
 
 
 @router.get("/me/cv")

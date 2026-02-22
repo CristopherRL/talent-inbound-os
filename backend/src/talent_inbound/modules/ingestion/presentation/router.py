@@ -63,7 +63,13 @@ async def submit_message(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=str(e)
         )
     except DuplicateInteractionError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": "A similar offer from the same company and role already exists.",
+                "existing_opportunity_id": str(e.existing_opportunity_id),
+            },
+        )
 
     # Run pipeline inline (mock agents are instant; real LLM would use Arq worker)
     try:

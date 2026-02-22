@@ -41,6 +41,7 @@ class OpportunityModel(Base):
     recruiter_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     recruiter_type: Mapped[str | None] = mapped_column(String(30), nullable=True)
     recruiter_company: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    detected_language: Mapped[str | None] = mapped_column(String(10), nullable=True)
     match_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     match_reasoning: Mapped[str | None] = mapped_column(Text, nullable=True)
     missing_fields: Mapped[list[str] | None] = mapped_column(
@@ -81,6 +82,7 @@ class OpportunityModel(Base):
             recruiter_name=self.recruiter_name,
             recruiter_type=self.recruiter_type,
             recruiter_company=self.recruiter_company,
+            detected_language=self.detected_language,
             match_score=self.match_score,
             match_reasoning=self.match_reasoning,
             missing_fields=self.missing_fields or [],
@@ -116,6 +118,7 @@ class OpportunityModel(Base):
                 else opportunity.recruiter_type
             ),
             recruiter_company=opportunity.recruiter_company,
+            detected_language=opportunity.detected_language,
             match_score=opportunity.match_score,
             match_reasoning=opportunity.match_reasoning,
             missing_fields=opportunity.missing_fields,

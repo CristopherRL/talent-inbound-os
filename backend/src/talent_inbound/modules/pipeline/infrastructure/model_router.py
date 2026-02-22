@@ -24,6 +24,7 @@ AGENT_TIERS: dict[str, ModelTier] = {
     "guardrail": ModelTier.FAST,
     "gatekeeper": ModelTier.FAST,
     "extractor": ModelTier.SMART,
+    "language_detector": ModelTier.FAST,
     "analyst": ModelTier.SMART,
     "communicator": ModelTier.SMART,
     "stage_detector": ModelTier.FAST,

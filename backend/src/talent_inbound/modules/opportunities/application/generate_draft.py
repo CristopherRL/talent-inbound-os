@@ -34,6 +34,7 @@ class GenerateDraft:
         opportunity_id: str,
         response_type: str,
         additional_context: str | None = None,
+        language: str | None = None,
     ) -> dict:
         """Generate a draft and persist it.
 
@@ -105,6 +106,9 @@ class GenerateDraft:
                 opportunity_id=opportunity_id,
             )
 
+        # Resolve effective language: explicit override > pipeline-detected > None
+        effective_language = language or opp.detected_language
+
         # Generate draft
         draft_text = await generate_draft_standalone(
             response_type=rt.value,
@@ -112,6 +116,7 @@ class GenerateDraft:
             profile=profile,
             model=model,
             additional_context=additional_context,
+            language=effective_language,
         )
 
         logger.info(

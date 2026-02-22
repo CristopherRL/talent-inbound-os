@@ -1,8 +1,8 @@
 """LangGraph StateGraph definitions for the processing pipeline.
 
-Main pipeline: guardrail → gatekeeper → (conditional: spam→END, offer→extractor)
-              → extractor → (conditional: missing fields→END, complete→analyst)
-              → analyst → communicator → stage_detector → END
+Main pipeline: guardrail → gatekeeper → (spam→END | offer→extractor)
+  → extractor → (missing→END | ok→language_detector)
+  → language_detector → analyst → communicator → stage_detector → END
 """
 
 from typing import Literal
@@ -25,6 +25,9 @@ from talent_inbound.modules.pipeline.infrastructure.agents.gatekeeper import (
 from talent_inbound.modules.pipeline.infrastructure.agents.guardrail import (
     guardrail_node,
 )
+from talent_inbound.modules.pipeline.infrastructure.agents.language_detector import (
+    create_language_detector_node,
+)
 from talent_inbound.modules.pipeline.infrastructure.agents.stage_detector import (
     create_stage_detector_node,
 )
@@ -39,13 +42,15 @@ def _route_after_gatekeeper(state: PipelineState) -> Literal["extractor", "__end
     return "__end__"
 
 
-def _route_after_extractor(state: PipelineState) -> Literal["analyst", "__end__"]:
-    """Conditional edge: skip analyst if critical fields are missing."""
+def _route_after_extractor(
+    state: PipelineState,
+) -> Literal["language_detector", "__end__"]:
+    """Conditional edge: skip remaining steps if critical fields are missing."""
     extracted = state.get("extracted_data", {})
     missing = extracted.get("missing_fields", [])
     if missing:
         return "__end__"
-    return "analyst"
+    return "language_detector"
 
 
 def build_main_pipeline(
@@ -67,6 +72,9 @@ def build_main_pipeline(
     """
     gatekeeper_model = model_router.get_model("gatekeeper") if model_router else None
     extractor_model = model_router.get_model("extractor") if model_router else None
+    language_detector_model = (
+        model_router.get_model("language_detector") if model_router else None
+    )
     analyst_model = model_router.get_model("analyst") if model_router else None
     communicator_model = (
         model_router.get_model("communicator") if model_router else None
@@ -81,6 +89,9 @@ def build_main_pipeline(
     graph.add_node("guardrail", guardrail_node)
     graph.add_node("gatekeeper", create_gatekeeper_node(gatekeeper_model))
     graph.add_node("extractor", create_extractor_node(extractor_model))
+    graph.add_node(
+        "language_detector", create_language_detector_node(language_detector_model)
+    )
     graph.add_node(
         "analyst",
         create_analyst_node(
@@ -115,8 +126,9 @@ def build_main_pipeline(
     graph.add_conditional_edges(
         "extractor",
         _route_after_extractor,
-        {"analyst": "analyst", "__end__": END},
+        {"language_detector": "language_detector", "__end__": END},
     )
+    graph.add_edge("language_detector", "analyst")
     graph.add_edge("analyst", "communicator")
     graph.add_edge("communicator", "stage_detector")
     graph.add_edge("stage_detector", END)
@@ -133,9 +145,12 @@ def build_followup_pipeline(
     """Build the follow-up pipeline — same as main but skips Gatekeeper.
 
     We already know this is a real offer (it was classified during initial ingestion),
-    so we go straight from guardrail → extractor → analyst → communicator → stage_detector.
+    guardrail → extractor → language_detector → analyst → communicator → stage_detector.
     """
     extractor_model = model_router.get_model("extractor") if model_router else None
+    language_detector_model = (
+        model_router.get_model("language_detector") if model_router else None
+    )
     analyst_model = model_router.get_model("analyst") if model_router else None
     communicator_model = (
         model_router.get_model("communicator") if model_router else None
@@ -149,6 +164,9 @@ def build_followup_pipeline(
     # Nodes — no gatekeeper
     graph.add_node("guardrail", guardrail_node)
     graph.add_node("extractor", create_extractor_node(extractor_model))
+    graph.add_node(
+        "language_detector", create_language_detector_node(language_detector_model)
+    )
     graph.add_node(
         "analyst",
         create_analyst_node(
@@ -172,14 +190,15 @@ def build_followup_pipeline(
         ),
     )
 
-    # Edges: guardrail → extractor → (conditional) → analyst → communicator → stage_detector → END
+    # Edges: guardrail → extractor → lang_detector → analyst → comm → END
     graph.add_edge(START, "guardrail")
     graph.add_edge("guardrail", "extractor")
     graph.add_conditional_edges(
         "extractor",
         _route_after_extractor,
-        {"analyst": "analyst", "__end__": END},
+        {"language_detector": "language_detector", "__end__": END},
     )
+    graph.add_edge("language_detector", "analyst")
     graph.add_edge("analyst", "communicator")
     graph.add_edge("communicator", "stage_detector")
     graph.add_edge("stage_detector", END)
