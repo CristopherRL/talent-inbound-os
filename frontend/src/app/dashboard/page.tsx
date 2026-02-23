@@ -53,7 +53,7 @@ function DashboardContent() {
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortField>("date");
   const [stageFilter, setStageFilter] = useState<string>(
-    searchParams?.get("stage") ?? ""
+    searchParams.get("stage") ?? ""
   );
   const [archivedFilter, setArchivedFilter] = useState<string>("");
   const [pageSize, setPageSize] = useState(10);
@@ -68,6 +68,7 @@ function DashboardContent() {
   useEffect(() => {
     async function load() {
       setLoading(true);
+      setError(null);
       try {
         const params: { stage?: string; archived?: string } = {};
         if (stageFilter) params.stage = stageFilter;
