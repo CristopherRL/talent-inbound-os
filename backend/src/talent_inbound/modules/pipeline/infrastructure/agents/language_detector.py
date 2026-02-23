@@ -80,28 +80,32 @@ def _parse_llm_response(raw: str) -> str | None:
 
 async def _llm_detect(model: BaseChatModel, text: str) -> str:
     """Use FAST-tier LLM to detect language, with heuristic fallback."""
-    prompt_template = load_prompt("language_detector")
-    messages = [
-        SystemMessage(content=prompt_template),
-        HumanMessage(content=text),
-    ]
-    response = await model.ainvoke(messages)
-    content = response.content
-    raw = content if isinstance(content, str) else str(content)
+    try:
+        prompt_template = load_prompt("language_detector")
+        messages = [
+            SystemMessage(content=prompt_template),
+            HumanMessage(content=text),
+        ]
+        response = await model.ainvoke(messages)
+        content = response.content
+        raw = content if isinstance(content, str) else str(content)
 
-    lang = _parse_llm_response(raw)
-    if lang:
-        logger.debug("language_detector_llm", detected=lang, raw_response=raw[:200])
-        return lang
+        lang = _parse_llm_response(raw)
+        if lang:
+            logger.debug("language_detector_llm", detected=lang, raw_response=raw[:200])
+            return lang
 
-    # LLM response unparseable — fall back to heuristic instead of defaulting to "en"
-    heuristic_lang = _mock_detect(text)
-    logger.warning(
-        "language_detector_llm_parse_failed",
-        raw_response=raw[:200],
-        heuristic_fallback=heuristic_lang,
-    )
-    return heuristic_lang
+        # LLM response unparseable — fall back to heuristic
+        heuristic_lang = _mock_detect(text)
+        logger.warning(
+            "language_detector_llm_parse_failed",
+            raw_response=raw[:200],
+            heuristic_fallback=heuristic_lang,
+        )
+        return heuristic_lang
+    except Exception:
+        logger.exception("language_detector_llm_failed")
+        return _mock_detect(text)
 
 
 def create_language_detector_node(model: BaseChatModel | None = None):

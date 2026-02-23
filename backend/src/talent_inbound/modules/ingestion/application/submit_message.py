@@ -21,6 +21,7 @@ from talent_inbound.shared.domain.enums import (
 )
 from talent_inbound.shared.infrastructure.event_bus import InProcessEventBus
 
+import re
 
 @dataclass
 class SubmitMessageCommand:
@@ -127,8 +128,8 @@ class SubmitMessage:
             if not company or not role:
                 continue
 
-            company_match = company in content_lower
-            role_match = role in content_lower
+            company_match = bool(re.search(r"\b" + re.escape(company) + r"\b", content_lower))
+            role_match = bool(re.search(r"\b" + re.escape(role) + r"\b", content_lower))
 
             if company_match and role_match:
                 return opp.id

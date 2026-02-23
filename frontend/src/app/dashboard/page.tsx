@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "@/components/ui/Navbar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -146,7 +147,7 @@ function DashboardContent() {
 
             {profileComplete ? (
               <Button asChild>
-                <a href="/ingest">+ New Offer</a>
+                <Link href="/ingest">+ New Offer</Link>
               </Button>
             ) : (
               <Button disabled title={tooltipMessage}>
@@ -196,7 +197,7 @@ function DashboardContent() {
                     Start by pasting a recruiter message to create your first opportunity.
                   </p>
                   <Button asChild>
-                    <a href="/ingest">+ New Offer</a>
+                    <Link href="/ingest">+ New Offer</Link>
                   </Button>
                 </>
               ) : (
@@ -205,7 +206,7 @@ function DashboardContent() {
                     Before adding offers, complete your profile so we can score opportunities against your preferences.
                   </p>
                   <Button asChild>
-                    <a href="/profile">Complete Profile</a>
+                    <Link href="/profile">Complete Profile</Link>
                   </Button>
                   <p className="mt-2 text-xs text-muted-foreground">
                     Required: Name, Professional Title, 3+ Skills, Minimum Salary, Work Model

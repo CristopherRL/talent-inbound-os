@@ -76,6 +76,7 @@ export default function ProfilePage() {
 
   async function handleSkillsExtracted(skills: string[]) {
     if (!profile) return;
+    const previousProfile = profile;
     // Update local state immediately so SkillChips shows the new skills
     const updatedProfile = { ...profile, skills };
     setProfile(updatedProfile);
@@ -97,6 +98,7 @@ export default function ProfilePage() {
       setProfile(saved);
       showToast(`Skills updated (${skills.length} skills)`, "success");
     } catch (err: unknown) {
+      setProfile(previousProfile);
       if (err instanceof Error) showToast(err.message, "error");
     }
   }

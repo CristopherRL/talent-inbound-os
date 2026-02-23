@@ -1,6 +1,7 @@
 """Pydantic schemas for the opportunities API endpoints."""
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -93,7 +94,7 @@ class OpportunityDetailResponse(BaseModel):
 class GenerateDraftRequest(BaseModel):
     response_type: str  # REQUEST_INFO | EXPRESS_INTEREST | DECLINE
     additional_context: str | None = None  # Optional user instructions for the draft
-    language: str | None = None  # Optional language override (e.g. "en", "es")
+    language: Literal["en", "es"] | None = None  # Optional language override
 
 
 class EditDraftRequest(BaseModel):

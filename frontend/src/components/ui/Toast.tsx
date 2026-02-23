@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 export type ToastVariant = "success" | "error";
@@ -84,11 +84,13 @@ export function Toast({ toast }: ToastProps) {
  */
 export function useToast(durationMs = 3000) {
   const [toast, setToast] = useState<ToastMessage | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function showToast(message: string, variant: ToastVariant) {
+    if (timerRef.current) clearTimeout(timerRef.current);
     const id = Date.now().toString();
     setToast({ id, message, variant });
-    setTimeout(() => setToast(null), durationMs);
+    timerRef.current = setTimeout(() => setToast(null), durationMs);
   }
 
   return { toast, showToast };

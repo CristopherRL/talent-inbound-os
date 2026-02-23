@@ -13,7 +13,7 @@ You are a Data Extraction Specialist for IT Recruitment. Your goal is to parse r
 Return ONLY a JSON object:
 {
   "company_name": "string or null",
-  "client_name": "string or null",
+  "client_name": "string or null (end client company if recruiter is AGENCY)",
   "role_title": "string or null",
   "salary_range": "string or null",
   "tech_stack": ["string array"],
@@ -48,7 +48,7 @@ Output:
   "client_name": null,
   "role_title": "Data Engineer",
   "salary_range": "320 EUR/day",
-  "tech_stack": ["Cloudera", "Python", "SQL", "PySpark", "Databricks", "Hadoop"],
+  "tech_stack": ["Cloudera", "Python", "SQL", "PySpark"],
   "work_model": "REMOTE",
   "recruiter_name": "Olga Staroshchuk",
   "recruiter_type": "AGENCY",
