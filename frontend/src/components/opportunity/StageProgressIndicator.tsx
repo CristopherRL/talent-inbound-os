@@ -1,12 +1,13 @@
 "use client";
 
 const NON_TERMINAL_STAGES = ["DISCOVERY", "ENGAGING", "INTERVIEWING", "NEGOTIATING"];
-const TERMINAL_STAGES = new Set(["OFFER", "REJECTED", "GHOSTED"]);
+const TERMINAL_STAGES = new Set(["OFFER", "REJECTED", "DECLINED", "GHOSTED"]);
 
 const TERMINAL_COLORS: Record<string, string> = {
-  OFFER: "bg-green-100 text-green-700 border-green-200",
-  REJECTED: "bg-red-100 text-red-700 border-red-200",
-  GHOSTED: "bg-orange-100 text-orange-700 border-orange-200",
+  OFFER: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+  REJECTED: "bg-rose-500/15 text-rose-400 border-rose-500/30",
+  DECLINED: "bg-orange-500/15 text-orange-400 border-orange-500/30",
+  GHOSTED: "bg-amber-500/15 text-amber-400 border-amber-500/30",
 };
 
 interface StageProgressIndicatorProps {
@@ -15,7 +16,7 @@ interface StageProgressIndicatorProps {
 
 export default function StageProgressIndicator({ currentStage }: StageProgressIndicatorProps) {
   if (TERMINAL_STAGES.has(currentStage)) {
-    const colors = TERMINAL_COLORS[currentStage] || "bg-gray-100 text-gray-700 border-gray-200";
+    const colors = TERMINAL_COLORS[currentStage] || "bg-muted text-muted-foreground border-border";
     return (
       <div className={`inline-flex items-center rounded-md border px-3 py-1.5 text-sm font-medium ${colors}`}>
         {currentStage}
@@ -39,10 +40,10 @@ export default function StageProgressIndicator({ currentStage }: StageProgressIn
               <div
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${
                   isCompleted
-                    ? "bg-green-500 text-white"
+                    ? "bg-emerald-500 text-white"
                     : isCurrent
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-200 text-gray-500"
+                      ? "bg-primary text-white shadow-md shadow-primary/30"
+                      : "bg-muted text-muted-foreground"
                 }`}
               >
                 {isCompleted ? (
@@ -59,7 +60,7 @@ export default function StageProgressIndicator({ currentStage }: StageProgressIn
               </div>
               <span
                 className={`text-[10px] mt-1 ${
-                  isCurrent ? "font-medium text-blue-700" : isFuture ? "text-gray-400" : "text-gray-600"
+                  isCurrent ? "font-medium text-primary" : isFuture ? "text-muted-foreground/60" : "text-muted-foreground"
                 }`}
               >
                 {stage}
@@ -69,7 +70,7 @@ export default function StageProgressIndicator({ currentStage }: StageProgressIn
             {idx < NON_TERMINAL_STAGES.length - 1 && (
               <div
                 className={`w-12 h-0.5 mx-1 ${
-                  idx < currentIdx ? "bg-green-500" : "bg-gray-200"
+                  idx < currentIdx ? "bg-emerald-500" : "bg-border"
                 }`}
               />
             )}

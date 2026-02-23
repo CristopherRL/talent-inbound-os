@@ -42,3 +42,9 @@ class CVUploadResponse(BaseModel):
 
     cv_filename: str
     message: str = "CV uploaded successfully"
+
+
+class ExtractCVSkillsResponse(BaseModel):
+    """Response body after CV skill extraction."""
+
+    skills: list[str]

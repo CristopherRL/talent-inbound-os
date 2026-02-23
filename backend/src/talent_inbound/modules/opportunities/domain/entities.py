@@ -39,6 +39,7 @@ class Opportunity(AggregateRoot):
     recruiter_name: str | None = None
     recruiter_type: RecruiterType | None = None
     recruiter_company: str | None = None
+    detected_language: str | None = None
     match_score: int | None = None
     match_reasoning: str | None = None
     missing_fields: list[str] = []

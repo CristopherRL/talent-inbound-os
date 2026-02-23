@@ -1,8 +1,9 @@
 """LangGraph StateGraph definitions for the processing pipeline.
 
-Main pipeline: guardrail → gatekeeper → (conditional: spam→END, offer→extractor)
-              → extractor → (conditional: missing fields→END, complete→analyst)
-              → analyst → communicator → stage_detector → END
+Main pipeline: guardrail → (injection→END | ok→gatekeeper)
+  → gatekeeper → (spam→END | offer→extractor)
+  → extractor → language_detector → (missing→END | ok→analyst)
+  → analyst → communicator → stage_detector → END
 """
 
 from typing import Literal
@@ -23,12 +24,33 @@ from talent_inbound.modules.pipeline.infrastructure.agents.gatekeeper import (
     create_gatekeeper_node,
 )
 from talent_inbound.modules.pipeline.infrastructure.agents.guardrail import (
-    guardrail_node,
+    create_guardrail_node,
+)
+from talent_inbound.modules.pipeline.infrastructure.agents.language_detector import (
+    create_language_detector_node,
 )
 from talent_inbound.modules.pipeline.infrastructure.agents.stage_detector import (
     create_stage_detector_node,
 )
 from talent_inbound.modules.pipeline.infrastructure.model_router import ModelRouter
+
+
+def _route_after_guardrail(
+    state: PipelineState,
+) -> Literal["gatekeeper", "__end__"]:
+    """Conditional edge: stop pipeline if prompt injection was detected."""
+    if state.get("prompt_injection_detected"):
+        return "__end__"
+    return "gatekeeper"
+
+
+def _route_after_guardrail_followup(
+    state: PipelineState,
+) -> Literal["extractor", "__end__"]:
+    """Conditional edge for follow-up pipeline (no gatekeeper)."""
+    if state.get("prompt_injection_detected"):
+        return "__end__"
+    return "extractor"
 
 
 def _route_after_gatekeeper(state: PipelineState) -> Literal["extractor", "__end__"]:
@@ -39,8 +61,14 @@ def _route_after_gatekeeper(state: PipelineState) -> Literal["extractor", "__end
     return "__end__"
 
 
-def _route_after_extractor(state: PipelineState) -> Literal["analyst", "__end__"]:
-    """Conditional edge: skip analyst if critical fields are missing."""
+def _route_after_language_detector(
+    state: PipelineState,
+) -> Literal["analyst", "__end__"]:
+    """Conditional edge: skip scoring/drafting if critical fields are missing.
+
+    NOTE: Language detection always runs (even for incomplete offers) so that
+    on-demand draft generation can match the recruiter's language.
+    """
     extracted = state.get("extracted_data", {})
     missing = extracted.get("missing_fields", [])
     if missing:
@@ -65,8 +93,12 @@ def build_main_pipeline(
     Returns:
         A compiled LangGraph StateGraph ready for invocation.
     """
+    guardrail_model = model_router.get_model("guardrail") if model_router else None
     gatekeeper_model = model_router.get_model("gatekeeper") if model_router else None
     extractor_model = model_router.get_model("extractor") if model_router else None
+    language_detector_model = (
+        model_router.get_model("language_detector") if model_router else None
+    )
     analyst_model = model_router.get_model("analyst") if model_router else None
     communicator_model = (
         model_router.get_model("communicator") if model_router else None
@@ -78,9 +110,12 @@ def build_main_pipeline(
     graph = StateGraph(PipelineState)
 
     # Add nodes
-    graph.add_node("guardrail", guardrail_node)
+    graph.add_node("guardrail", create_guardrail_node(guardrail_model))
     graph.add_node("gatekeeper", create_gatekeeper_node(gatekeeper_model))
     graph.add_node("extractor", create_extractor_node(extractor_model))
+    graph.add_node(
+        "language_detector", create_language_detector_node(language_detector_model)
+    )
     graph.add_node(
         "analyst",
         create_analyst_node(
@@ -106,15 +141,20 @@ def build_main_pipeline(
 
     # Edges
     graph.add_edge(START, "guardrail")
-    graph.add_edge("guardrail", "gatekeeper")
+    graph.add_conditional_edges(
+        "guardrail",
+        _route_after_guardrail,
+        {"gatekeeper": "gatekeeper", "__end__": END},
+    )
     graph.add_conditional_edges(
         "gatekeeper",
         _route_after_gatekeeper,
         {"extractor": "extractor", "__end__": END},
     )
+    graph.add_edge("extractor", "language_detector")
     graph.add_conditional_edges(
-        "extractor",
-        _route_after_extractor,
+        "language_detector",
+        _route_after_language_detector,
         {"analyst": "analyst", "__end__": END},
     )
     graph.add_edge("analyst", "communicator")
@@ -133,9 +173,13 @@ def build_followup_pipeline(
     """Build the follow-up pipeline — same as main but skips Gatekeeper.
 
     We already know this is a real offer (it was classified during initial ingestion),
-    so we go straight from guardrail → extractor → analyst → communicator → stage_detector.
+    guardrail → extractor → language_detector → analyst → communicator → stage_detector.
     """
+    guardrail_model = model_router.get_model("guardrail") if model_router else None
     extractor_model = model_router.get_model("extractor") if model_router else None
+    language_detector_model = (
+        model_router.get_model("language_detector") if model_router else None
+    )
     analyst_model = model_router.get_model("analyst") if model_router else None
     communicator_model = (
         model_router.get_model("communicator") if model_router else None
@@ -147,8 +191,11 @@ def build_followup_pipeline(
     graph = StateGraph(PipelineState)
 
     # Nodes — no gatekeeper
-    graph.add_node("guardrail", guardrail_node)
+    graph.add_node("guardrail", create_guardrail_node(guardrail_model))
     graph.add_node("extractor", create_extractor_node(extractor_model))
+    graph.add_node(
+        "language_detector", create_language_detector_node(language_detector_model)
+    )
     graph.add_node(
         "analyst",
         create_analyst_node(
@@ -172,12 +219,17 @@ def build_followup_pipeline(
         ),
     )
 
-    # Edges: guardrail → extractor → (conditional) → analyst → communicator → stage_detector → END
+    # Edges: guardrail → (injection→END | ok→extractor) → ...
     graph.add_edge(START, "guardrail")
-    graph.add_edge("guardrail", "extractor")
     graph.add_conditional_edges(
-        "extractor",
-        _route_after_extractor,
+        "guardrail",
+        _route_after_guardrail_followup,
+        {"extractor": "extractor", "__end__": END},
+    )
+    graph.add_edge("extractor", "language_detector")
+    graph.add_conditional_edges(
+        "language_detector",
+        _route_after_language_detector,
         {"analyst": "analyst", "__end__": END},
     )
     graph.add_edge("analyst", "communicator")

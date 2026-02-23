@@ -57,6 +57,9 @@ class PipelineState(TypedDict, total=False):
     # Extractor output
     extracted_data: ExtractedData
 
+    # Language Detector output
+    detected_language: str | None
+
     # Analyst output (stub in US4, implemented in US5)
     match_score: int | None
     match_reasoning: str | None

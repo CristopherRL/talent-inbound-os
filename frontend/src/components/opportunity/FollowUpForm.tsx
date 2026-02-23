@@ -41,7 +41,7 @@ export default function FollowUpForm({ defaultSource, onSubmit }: FollowUpFormPr
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-foreground/80 mb-1">
           Recruiter&apos;s follow-up message
         </label>
         <textarea
@@ -49,16 +49,16 @@ export default function FollowUpForm({ defaultSource, onSubmit }: FollowUpFormPr
           onChange={(e) => setContent(e.target.value)}
           placeholder="Paste the recruiter's reply here..."
           rows={5}
-          className="w-full text-sm text-gray-900 placeholder:text-gray-400 border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="w-full text-sm text-foreground bg-muted/50 placeholder:text-muted-foreground border border-border rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
         />
       </div>
       <div className="flex items-center gap-3">
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Source</label>
+          <label className="block text-xs text-muted-foreground mb-1">Source</label>
           <select
             value={source}
             onChange={(e) => setSource(e.target.value)}
-            className="text-sm border border-gray-300 rounded-md px-2 py-1.5 text-gray-700 bg-white"
+            className="text-sm border border-border rounded-md px-2 py-1.5 text-foreground bg-card"
           >
             {SOURCES.map((s) => (
               <option key={s.value} value={s.value}>
@@ -71,14 +71,14 @@ export default function FollowUpForm({ defaultSource, onSubmit }: FollowUpFormPr
           <button
             type="submit"
             disabled={submitting || !content.trim()}
-            className="text-sm px-4 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 mt-4"
+            className="text-sm px-4 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/80 disabled:opacity-50 mt-4 transition-colors"
           >
             {submitting ? "Submitting..." : "Submit Follow-Up"}
           </button>
         </div>
       </div>
       {error && (
-        <p className="text-xs text-red-600">{error}</p>
+        <p className="text-xs text-destructive">{error}</p>
       )}
     </form>
   );

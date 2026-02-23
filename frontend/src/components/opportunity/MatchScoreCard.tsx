@@ -13,10 +13,10 @@ interface MatchScoreCardProps {
 
 function scoreColor(score: number): string {
   if (score >= SCORING_THRESHOLD_HIGH)
-    return "text-green-600 bg-green-50 border-green-200";
+    return "text-emerald-400 bg-emerald-500/10 border-emerald-500/25";
   if (score >= SCORING_THRESHOLD_MEDIUM)
-    return "text-yellow-600 bg-yellow-50 border-yellow-200";
-  return "text-red-500 bg-red-50 border-red-200";
+    return "text-amber-400 bg-amber-500/10 border-amber-500/25";
+  return "text-rose-400 bg-rose-500/10 border-rose-500/25";
 }
 
 function scoreLabel(score: number): string {
@@ -26,9 +26,9 @@ function scoreLabel(score: number): string {
 }
 
 function ringColor(score: number): string {
-  if (score >= SCORING_THRESHOLD_HIGH) return "stroke-green-500";
-  if (score >= SCORING_THRESHOLD_MEDIUM) return "stroke-yellow-500";
-  return "stroke-red-500";
+  if (score >= SCORING_THRESHOLD_HIGH) return "stroke-emerald-500";
+  if (score >= SCORING_THRESHOLD_MEDIUM) return "stroke-amber-500";
+  return "stroke-rose-500";
 }
 
 function ScoreRing({ score }: { score: number }) {
@@ -46,7 +46,7 @@ function ScoreRing({ score }: { score: number }) {
           fill="none"
           stroke="currentColor"
           strokeWidth="6"
-          className="text-gray-200"
+          className="text-muted"
         />
         <circle
           cx="40"
@@ -61,8 +61,8 @@ function ScoreRing({ score }: { score: number }) {
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-lg font-bold text-gray-900">{score}</span>
-        <span className="text-[10px] text-gray-500">/100</span>
+        <span className="text-lg font-bold text-foreground">{score}</span>
+        <span className="text-[10px] text-muted-foreground">/100</span>
       </div>
     </div>
   );
@@ -76,9 +76,9 @@ export default function MatchScoreCard({
 
   if (score === null) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-4">
-        <h3 className="text-sm font-medium text-gray-900 mb-2">Match Score</h3>
-        <p className="text-sm text-gray-500">
+      <div className="rounded-lg border border-border bg-card p-4">
+        <h3 className="text-sm font-medium text-foreground mb-2">Match Score</h3>
+        <p className="text-sm text-muted-foreground">
           Score not available. The offer may be missing critical fields or still
           processing.
         </p>
@@ -88,7 +88,7 @@ export default function MatchScoreCard({
 
   return (
     <div className={`rounded-lg border p-4 ${scoreColor(score)}`}>
-      <h3 className="text-sm font-medium text-gray-900 mb-3">Match Score</h3>
+      <h3 className="text-sm font-medium text-foreground mb-3">Match Score</h3>
       <div className="flex items-center gap-3 mb-2">
         <ScoreRing score={score} />
         <span className="text-sm font-semibold">{scoreLabel(score)}</span>
@@ -96,7 +96,7 @@ export default function MatchScoreCard({
       {reasoning && (
         <div className="mt-2 border-t border-current/10 pt-2">
           <p
-            className={`text-xs text-gray-700 leading-relaxed ${
+            className={`text-xs text-foreground/70 leading-relaxed ${
               !expanded ? "line-clamp-3" : ""
             }`}
           >
@@ -105,7 +105,7 @@ export default function MatchScoreCard({
           {reasoning.length > 150 && (
             <button
               onClick={() => setExpanded(!expanded)}
-              className="text-xs text-blue-600 hover:text-blue-700 mt-1"
+              className="text-xs text-primary hover:text-primary/80 mt-1 transition-colors"
             >
               {expanded ? "Show less" : "Show more"}
             </button>

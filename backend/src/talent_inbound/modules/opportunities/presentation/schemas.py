@@ -1,6 +1,7 @@
 """Pydantic schemas for the opportunities API endpoints."""
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -20,6 +21,7 @@ class OpportunityListItem(BaseModel):
     match_score: int | None
     missing_fields: list[str]
     stage: str
+    detected_language: str | None = None
     is_archived: bool
     created_at: datetime
     updated_at: datetime
@@ -74,6 +76,7 @@ class OpportunityDetailResponse(BaseModel):
     match_reasoning: str | None
     missing_fields: list[str]
     stage: str
+    detected_language: str | None = None
     suggested_stage: str | None
     suggested_stage_reason: str | None
     is_archived: bool
@@ -91,6 +94,7 @@ class OpportunityDetailResponse(BaseModel):
 class GenerateDraftRequest(BaseModel):
     response_type: str  # REQUEST_INFO | EXPRESS_INTEREST | DECLINE
     additional_context: str | None = None  # Optional user instructions for the draft
+    language: Literal["en", "es"] | None = None  # Optional language override
 
 
 class EditDraftRequest(BaseModel):

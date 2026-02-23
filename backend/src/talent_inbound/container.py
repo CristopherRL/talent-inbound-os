@@ -37,6 +37,7 @@ from talent_inbound.modules.opportunities.infrastructure.repositories import (
 )
 from talent_inbound.modules.pipeline.infrastructure.model_router import ModelRouter
 from talent_inbound.modules.pipeline.infrastructure.sse import SSEEmitter
+from talent_inbound.modules.profile.application.extract_cv_skills import ExtractCVSkills
 from talent_inbound.modules.profile.application.get_profile import GetProfile
 from talent_inbound.modules.profile.application.update_profile import UpdateProfile
 from talent_inbound.modules.profile.application.upload_cv import UploadCV
@@ -205,6 +206,13 @@ class Container(containers.DeclarativeContainer):
     )
 
     sse_emitter = providers.Singleton(SSEEmitter)
+
+    # CV skill extraction — uses SMART LLM (same tier as extractor)
+    extract_cv_skills_uc = providers.Factory(
+        ExtractCVSkills,
+        profile_repo=profile_repo,
+        model_router=model_router,
+    )
 
     # GenerateDraft uses model_router to stay consistent with the pipeline mode
     generate_draft_uc = providers.Factory(

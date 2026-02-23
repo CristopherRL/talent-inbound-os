@@ -23,6 +23,6 @@ v1_router.include_router(opportunities_router)
 v1_router.include_router(pipeline_router)
 
 
-# Chat module deferred to MVP v1 (separate feature branch)
+# Chat module deferred to MVP 2 (separate feature branch)
 # from talent_inbound.modules.chat.presentation.router import router as chat_router
 # v1_router.include_router(chat_router)

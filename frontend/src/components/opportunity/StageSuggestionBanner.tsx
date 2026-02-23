@@ -36,13 +36,13 @@ export default function StageSuggestionBanner({
   }
 
   return (
-    <div className="rounded-md bg-indigo-50 border border-indigo-200 p-3 flex items-center justify-between gap-3">
+    <div className="rounded-lg bg-primary/10 border border-primary/25 p-3 flex items-center justify-between gap-3">
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-indigo-800">
+        <p className="text-sm text-foreground">
           AI suggests moving to{" "}
-          <span className="font-semibold">{suggestedStage}</span>
+          <span className="font-semibold text-primary">{suggestedStage}</span>
           {reason && (
-            <span className="text-indigo-600">: {reason}</span>
+            <span className="text-primary/80">: {reason}</span>
           )}
         </p>
       </div>
@@ -50,14 +50,14 @@ export default function StageSuggestionBanner({
         <button
           onClick={handleAccept}
           disabled={loading}
-          className="text-sm px-3 py-1 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+          className="text-sm px-3 py-1 rounded-md bg-primary text-primary-foreground hover:bg-primary/80 disabled:opacity-50 transition-colors"
         >
           Accept
         </button>
         <button
           onClick={handleDismiss}
           disabled={loading}
-          className="text-sm px-3 py-1 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+          className="text-sm px-3 py-1 rounded-md border border-border text-muted-foreground hover:bg-muted disabled:opacity-50 transition-colors"
         >
           Dismiss
         </button>

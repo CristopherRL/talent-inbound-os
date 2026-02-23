@@ -85,6 +85,7 @@ class SqlAlchemyOpportunityRepository(OpportunityRepository):
         model.recruiter_name = opportunity.recruiter_name
         model.recruiter_type = _enum_value(opportunity.recruiter_type)
         model.recruiter_company = opportunity.recruiter_company
+        model.detected_language = opportunity.detected_language
         model.match_score = opportunity.match_score
         model.match_reasoning = opportunity.match_reasoning
         model.missing_fields = opportunity.missing_fields
