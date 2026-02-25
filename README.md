@@ -42,6 +42,8 @@ This project was born from a real, personal problem.
 
 As a Senior Engineer, I receive a constant stream of recruiter messages — through LinkedIn, email, and freelance platforms. Most are irrelevant or spam, but some are genuinely interesting opportunities. The problem? There are too many to review manually, and the good ones get buried under the noise.
 
+When I looked for tools to help, I realized something: today's job platforms are built to serve **companies**, not candidates. Every major tool — LinkedIn Recruiter, ATS systems, sourcing platforms — is optimized to help recruiters find, filter, and manage talent pipelines. But for professionals on the receiving end, there's almost nothing. No tool helps you intelligently filter inbound offers, score them against your actual preferences, or manage the conversation lifecycle. The market is full of recruiting technology, but nearly empty when it comes to **offer evaluation technology** from the candidate's perspective.
+
 For a while, I tried using a **Gemini Gem** (custom GPT-like assistant) to help me evaluate offers. It worked... until it didn't. Google wiped my conversation history multiple times, and with it, all the context about which offers I was tracking, what stage each conversation was in, and what I had already responded. There was no persistence, no lifecycle tracking, and no structured data — just a chat window that could vanish at any moment.
 
 I needed something purpose-built: a system that would **persist** my data, **structure** the extraction, **score** offers against my preferences, **draft** professional responses, and **track** where each conversation stands — all without depending on a third-party chat history that could disappear.
